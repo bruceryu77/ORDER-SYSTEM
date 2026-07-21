@@ -132,15 +132,43 @@ async function fetchFolderHtmlSources() {
 }
 
 function writeOutputs(files) {
+  // images-map.json is what the app loads first — always write it.
   fs.writeFileSync("images-map.json", JSON.stringify(files, null, 2) + "\n");
-  const cfg = fs.readFileSync("config.js", "utf8");
+
+  let cfg = fs.readFileSync("config.js", "utf8");
+  if (cfg.charCodeAt(0) === 0xfeff) cfg = cfg.slice(1);
+
+  const start = cfg.search(/window\.DRIVE_IMAGES\s*=\s*\[/);
+  if (start < 0) {
+    console.warn("DRIVE_IMAGES block not found in config.js — images-map.json was still updated");
+    return;
+  }
+
+  const openBracket = cfg.indexOf("[", start);
+  let depth = 0;
+  let end = -1;
+  for (let i = openBracket; i < cfg.length; i++) {
+    const ch = cfg[i];
+    if (ch === "[") depth++;
+    else if (ch === "]") {
+      depth--;
+      if (depth === 0) {
+        let j = i + 1;
+        while (j < cfg.length && /\s/.test(cfg[j])) j++;
+        end = cfg[j] === ";" ? j + 1 : i + 1;
+        break;
+      }
+    }
+  }
+  if (end < 0) {
+    console.warn("Could not find end of DRIVE_IMAGES array — images-map.json was still updated");
+    return;
+  }
+
   const list = files.map((f) => `  { id: "${f.id}", name: ${JSON.stringify(f.name)} }`).join(",\n");
-  const next = cfg.replace(
-    /window\.DRIVE_IMAGES\s*=\s*\[[\s\S]*?\];/,
-    `window.DRIVE_IMAGES = [\n${list}\n];`
-  );
-  if (next === cfg) throw new Error("Could not update DRIVE_IMAGES in config.js");
-  fs.writeFileSync("config.js", next);
+  const block = `window.DRIVE_IMAGES = [\n${list}\n];`;
+  const next = cfg.slice(0, start) + block + cfg.slice(end);
+  fs.writeFileSync("config.js", next.replace(/\r\n/g, "\n"));
 }
 
 (async () => {
