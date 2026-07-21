@@ -2,8 +2,9 @@
  * Sync Drive folder filenames into config.js / images-map.json
  * Run: node sync-drive-images.js
  *
- * On GitHub Actions, Google often blocks direct folder HTML.
- * This script tries direct fetch, then public proxies, then Drive API (optional key).
+ * GitHub Actions runners are often blocked by Google Drive HTML pages.
+ * Preferred: set repository secret GOOGLE_API_KEY (Drive API enabled).
+ * Fallback: direct/proxy HTML scrape (works on many local machines).
  */
 const fs = require("fs");
 const https = require("https");
@@ -19,13 +20,8 @@ function fetchText(u, redirects = 0) {
     const req = lib.get(
       u,
       {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9"
-        },
-        timeout: 25000
+        headers: { "User-Agent": "Mozilla/5.0" },
+        timeout: 30000
       },
       (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects < 6) {
@@ -35,15 +31,16 @@ function fetchText(u, redirects = 0) {
           res.resume();
           return fetchText(next, redirects + 1).then(resolve, reject);
         }
-        let data = "";
-        res.setEncoding("utf8");
-        res.on("data", (c) => (data += c));
+        let data = Buffer.alloc(0);
+        res.on("data", (c) => {
+          data = Buffer.concat([data, c]);
+        });
         res.on("end", () => {
           if (res.statusCode && res.statusCode >= 400) {
             reject(new Error(`HTTP ${res.statusCode} for ${u}`));
             return;
           }
-          resolve(data);
+          resolve(data.toString("utf8"));
         });
       }
     );
@@ -78,7 +75,10 @@ function parseFiles(html) {
 }
 
 async function fetchViaDriveApi() {
-  if (!API_KEY) return [];
+  if (!API_KEY) {
+    console.log("GOOGLE_API_KEY not set — skipping Drive API");
+    return [];
+  }
   const q = encodeURIComponent(`'${FOLDER_ID}' in parents and trashed=false`);
   const fields = encodeURIComponent("files(id,name),nextPageToken");
   let pageToken = "";
@@ -91,6 +91,7 @@ async function fetchViaDriveApi() {
       `&key=${encodeURIComponent(API_KEY)}${page}`;
     const text = await fetchText(url);
     const json = JSON.parse(text);
+    if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
     for (const f of json.files || []) {
       if (/\.(jpe?g|png|webp|gif)$/i.test(f.name || "")) {
         files.push({ id: f.id, name: f.name });
@@ -106,23 +107,21 @@ async function fetchFolderHtmlSources() {
   const sources = [
     FOLDER_URL,
     `https://api.allorigins.win/raw?url=${encoded}`,
-    `https://corsproxy.io/?${encoded}`,
-    `https://r.jina.ai/http://drive.google.com/drive/folders/${FOLDER_ID}`
+    `https://corsproxy.io/?${encoded}`
   ];
   const errors = [];
   for (const src of sources) {
     try {
-      console.log(`Trying: ${src.slice(0, 90)}...`);
+      console.log(`Trying: ${src.slice(0, 100)}`);
       const text = await fetchText(src);
       if (/accounts\.google\.com\/ServiceLogin/i.test(text)) {
-        throw new Error("Got Google login page");
+        throw new Error("Got Google login page (IP blocked)");
       }
       const files = parseFiles(text);
       if (files.length) {
-        console.log(`Parsed ${files.length} files from HTML source`);
+        console.log(`Parsed ${files.length} files`);
         return files;
       }
-      // jina markdown has names but not ids — keep going
       throw new Error(`No file ids found (length=${text.length})`);
     } catch (err) {
       console.warn(`Failed: ${err.message || err}`);
@@ -134,7 +133,6 @@ async function fetchFolderHtmlSources() {
 
 function writeOutputs(files) {
   fs.writeFileSync("images-map.json", JSON.stringify(files, null, 2) + "\n");
-
   const cfg = fs.readFileSync("config.js", "utf8");
   const list = files.map((f) => `  { id: "${f.id}", name: ${JSON.stringify(f.name)} }`).join(",\n");
   const next = cfg.replace(
