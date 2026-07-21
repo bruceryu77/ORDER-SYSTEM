@@ -32,5 +32,6 @@ window.DRIVE_IMAGES = [
   { id: "1Ywx_7bw4F4JrDi3NFqXVHyBzhwxk5Efx", name: "RK ONE STEP GEL TOP COAT.gif" },
   { id: "1F6PknKr4KLJQw0h9AeX4ll8arRvVSdX0", name: "RK ONE STEP GEL WHITE.jpg" },
   { id: "1nPVdal3hv_16npOMv71xwtE18Lf0z-1L", name: "YARDLEY 1X4.25 BAR ACTIVATED CHARCOAL.jpg" },
-  { id: "1PWzdqaKnCr7lioX3d7Yk0htmY8VSrMng", name: "YARDLEY 1X4.25 BAR COCOA BUTTER.gif" }
+  { id: "1PWzdqaKnCr7lioX3d7Yk0htmY8VSrMng", name: "YARDLEY 1X4.25 BAR COCOA BUTTER.gif" },
+  { id: "14uHIaSt4_84Ga-YsjEN47A8j8fEMIA-t", name: "YARDLEY 1X4.25 BAR CREAMY COCONUT.gif" }
 ];
