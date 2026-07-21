@@ -145,16 +145,32 @@ function writeOutputs(files) {
 
 (async () => {
   let files = [];
+  let apiError = null;
+
+  if (!API_KEY && process.env.GITHUB_ACTIONS === "true") {
+    throw new Error(
+      "GOOGLE_API_KEY is empty in GitHub Actions. " +
+        "Add repository secret GOOGLE_API_KEY (Settings → Secrets and variables → Actions)."
+    );
+  }
 
   try {
     files = await fetchViaDriveApi();
     if (files.length) console.log(`Drive API returned ${files.length} files`);
   } catch (err) {
+    apiError = err;
     console.warn("Drive API failed:", err.message || err);
   }
 
   if (!files.length) {
-    files = await fetchFolderHtmlSources();
+    try {
+      files = await fetchFolderHtmlSources();
+    } catch (htmlErr) {
+      const parts = [];
+      if (apiError) parts.push(`Drive API: ${apiError.message || apiError}`);
+      parts.push(`HTML scrape: ${htmlErr.message || htmlErr}`);
+      throw new Error(parts.join("\n"));
+    }
   }
 
   if (!files.length) throw new Error("No images found in Drive folder");

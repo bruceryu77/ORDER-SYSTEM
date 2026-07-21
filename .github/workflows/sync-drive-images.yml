@@ -30,10 +30,21 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Check GOOGLE_API_KEY secret
+        env:
+          HAS_KEY: ${{ secrets.GOOGLE_API_KEY != '' }}
+        run: |
+          echo "GOOGLE_API_KEY configured: $HAS_KEY"
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::error::GITHUB Secret GOOGLE_API_KEY is missing."
+            echo "Add it at: Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name must be exactly: GOOGLE_API_KEY"
+            echo "Also enable Google Drive API for that key."
+            exit 1
+          fi
+
       - name: Read public Drive folder
         env:
-          # Optional: Settings → Secrets → Actions → GOOGLE_API_KEY
-          # (Google Cloud API key with Drive API enabled for the public folder)
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: node sync-drive-images.js
 
