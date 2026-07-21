@@ -533,7 +533,8 @@
     const CACHE_KEY = "tester-order-google-cache-v6";
     /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
-    const IMAGE_REFRESH_MS = 5 * 60 * 1000;
+    /** How often the open app re-checks images-map.json (ms). */
+    const IMAGE_REFRESH_MS = 60 * 1000;
     const RESULT_LIMIT = 120;
     const BRAND_ORDER = ["COLORSILK", "ECOCO", "FANTASIA", "GILLETTE", "YARDLEY"];
     const UPDATE_MSG = "최신정보로 업데이트 중입니다";
@@ -751,7 +752,10 @@
       const candidates = [
         url,
         `https://api.allorigins.win/raw?url=${encoded}`,
-        `https://corsproxy.io/?${encoded}`
+        `https://corsproxy.io/?${encoded}`,
+        // Jina reader often works when other CORS proxies fail.
+        `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`,
+        `https://r.jina.ai/${url}`
       ];
       let lastErr;
       for (const u of candidates) {
@@ -945,7 +949,7 @@
     }
 
     function parseDriveFolderHtml(html) {
-      const files = [];
+      const byId = new Map();
       const trRe = /<tr[^>]*data-id="(1[a-zA-Z0-9_-]{20,})"[^>]*>([\s\S]*?)<\/tr>/gi;
       let m;
       while ((m = trRe.exec(html))) {
@@ -955,9 +959,16 @@
           block.match(/>([^<>]+\.(?:jpe?g|png|webp|gif))</i) ||
           block.match(/aria-label="([^"]+\.(?:jpe?g|png|webp|gif))"/i);
         if (!nameMatch) continue;
-        files.push({ id, name: nameMatch[1].trim() });
+        byId.set(id, { id, name: nameMatch[1].trim() });
       }
-      return files;
+      // Fallback for alternate Drive HTML shapes
+      if (!byId.size) {
+        const loose = /data-id="(1[a-zA-Z0-9_-]{20,})"[^>]*>[\s\S]{0,800}?([^<>"']+\.(?:jpe?g|png|webp|gif))/gi;
+        while ((m = loose.exec(html))) {
+          byId.set(m[1], { id: m[1], name: m[2].trim() });
+        }
+      }
+      return [...byId.values()];
     }
 
     function embeddedDriveImages() {
@@ -988,24 +999,42 @@
       return [...byId.values()];
     }
 
+    async function fetchDriveFolderLive(timeoutMs = 10000) {
+      const folderUrl = `https://drive.google.com/drive/folders/${CFG.DRIVE_FOLDER_ID}`;
+      const html = await Promise.race([
+        fetchTextViaProxies(folderUrl),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Drive timeout")), timeoutMs))
+      ]);
+      return parseDriveFolderHtml(html);
+    }
+
     async function loadDriveImages(forceLive) {
       const embedded = embeddedDriveImages();
       const hasApiKey = Boolean((CFG.GOOGLE_API_KEY || "").trim());
+      const tasks = [loadImagesMapFile()];
 
-      // A configured API key can read Drive directly. Otherwise GitHub Actions
-      // keeps images-map.json synchronized with the public Drive folder.
-      if (hasApiKey && forceLive) {
-        try {
-          const apiFiles = await fetchDriveWithApiKey();
-          const live = (apiFiles || []).filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || ""));
-          if (live.length) return mergeImageFiles(embedded, live);
-        } catch (err) {
-          console.warn("Drive API failed, using synchronized image map", err);
+      // Reload Google: also try live Drive listing so new photos appear immediately.
+      if (forceLive) {
+        if (hasApiKey) {
+          tasks.push(
+            fetchDriveWithApiKey()
+              .then((apiFiles) => (apiFiles || []).filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || "")))
+              .catch((err) => {
+                console.warn("Drive API failed", err);
+                return [];
+              })
+          );
         }
+        tasks.push(
+          fetchDriveFolderLive(10000).catch((err) => {
+            console.warn("Live Drive folder failed", err);
+            return [];
+          })
+        );
       }
 
-      const mapped = await loadImagesMapFile();
-      return mergeImageFiles(embedded, mapped);
+      const lists = await Promise.all(tasks);
+      return mergeImageFiles(embedded, ...lists);
     }
 
     function buildImageIndex(files) {
@@ -1352,7 +1381,7 @@
         saveCache(rows, files);
         setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
         refresh();
-        if (force) toast(`Loaded ${products.length} products`);
+        if (force) toast(`Loaded ${products.length} products · ${imageIndex.size} photos`);
       } catch (err) {
         console.error(err);
         if (!products.length) {

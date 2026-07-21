@@ -2,9 +2,12 @@ name: Sync Google Drive images
 
 on:
   schedule:
-    # GitHub scheduled workflows use UTC and may occasionally start late.
+    # GitHub cron is often delayed on free plans; keep several slots so it runs more often.
     - cron: "*/5 * * * *"
+    - cron: "1,6,11,16,21,26,31,36,41,46,51,56 * * * *"
   workflow_dispatch:
+  repository_dispatch:
+    types: [sync-drive-images]
 
 permissions:
   contents: write
