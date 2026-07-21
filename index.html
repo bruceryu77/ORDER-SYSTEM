@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Product Order · Google</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f3efe7;
+      --ink: #1c1a17;
+      --muted: #6b655c;
+      --line: #ddd4c6;
+      --accent: #2f5d4a;
+      --accent-hover: #254a3b;
+      --warn: #a33b2b;
+      --shadow: 0 10px 30px rgba(40, 30, 15, 0.08);
+      --panel: #fffdf9;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #efe4d2 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #e4ebe4 0%, transparent 50%),
+        var(--bg);
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 40px; }
+    header { margin-bottom: 22px; }
+    .eyebrow {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Syne", "Segoe UI", sans-serif;
+      font-size: clamp(2.4rem, 5vw, 3.4rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.5fr 0.9fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel-sticky { position: static; }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .panel-sticky { position: sticky; top: 12px; }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #f7f2ea;
+    }
+    .panel-head h2 { margin: 0; font-size: 1rem; }
+    .panel-body { padding: 14px 16px 18px; display: grid; gap: 12px; }
+
+    .filters { padding: 14px 16px 0; display: grid; gap: 8px; }
+    .filter-label {
+      margin: 0;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .note { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+    .status-line .ok { color: var(--accent); font-weight: 600; }
+    .status-line .err { color: var(--warn); font-weight: 600; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .chip:hover { background: #f3eee6; }
+    .chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #f7faf8;
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #e7efe9;
+      color: var(--accent);
+    }
+    .badge.colorsilk { background: #efe8f4; color: #5a3d6e; }
+    .badge.ecoco { background: #e8eef6; color: #2f4f74; }
+    .badge.fantasia { background: #f6e8e4; color: #7a3d2e; }
+    .badge.gillette { background: #e8f0f4; color: #2a5568; }
+    .badge.yardley { background: #eef3e6; color: #4a5c2e; }
+
+    input[type="search"], input[type="number"], textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+    }
+    input:focus, textarea:focus {
+      outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+      outline-offset: 1px;
+    }
+
+    .catalog {
+      display: grid;
+      gap: 10px;
+      padding: 14px 16px 18px;
+      max-height: min(78vh, 900px);
+      overflow: auto;
+    }
+    .empty-hint, .loading {
+      color: var(--muted);
+      text-align: center;
+      padding: 36px 12px;
+      line-height: 1.5;
+    }
+    .loading::after {
+      content: "";
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-left: 8px;
+      border: 2px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      vertical-align: -2px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .product-block {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fffdf9;
+    }
+    .product-head {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f3eee6;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+    .product-head strong { display: block; font-size: 0.92rem; }
+    .product-head span { color: var(--muted); font-size: 0.8rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td {
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+    }
+    th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: #f7f2ea;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .item-cell { display: flex; align-items: center; gap: 10px; }
+    .thumb {
+      width: 48px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #f0ece4;
+      flex-shrink: 0;
+    }
+    .thumb[hidden] { display: none; }
+    .item-text { min-width: 0; }
+    .name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      word-break: break-word;
+      line-height: 1.35;
+    }
+    .price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+    .stock { font-variant-numeric: tabular-nums; color: var(--muted); }
+    .stock.out { color: var(--warn); font-weight: 600; }
+    input.qty {
+      width: 72px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 8px;
+      font: inherit;
+      text-align: center;
+      background: #fff;
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 14px 8px 32px; }
+      header { padding: 0 6px; margin-bottom: 16px; }
+      h1 { font-size: 2.35rem; }
+
+      .panel { border-radius: 12px; }
+      .panel-head { padding: 12px; gap: 8px; }
+      .panel-head h2 { font-size: 0.95rem; }
+      .panel-head .btns { gap: 6px; }
+      .panel-head .btn-sm { padding: 8px 10px; font-size: 0.78rem; }
+
+      .filters { padding: 14px 12px 0; }
+      .chips { gap: 7px; }
+      .chip { padding: 8px 12px; }
+
+      /* Let the page scroll naturally instead of using a cramped inner table. */
+      .catalog {
+        max-height: none;
+        overflow: visible;
+        padding: 12px 8px 16px;
+      }
+      .product-block { border-radius: 11px; }
+      .product-head { padding: 12px; }
+
+      table, tbody, tr, td { display: block; width: 100%; }
+      thead { display: none; }
+      tbody { display: grid; }
+      tbody tr {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: 18px;
+        padding: 16px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      tbody tr:last-child { border-bottom: 0; }
+      tbody td {
+        padding: 0;
+        border-bottom: 0;
+        min-width: 0;
+      }
+      td.item-column {
+        grid-column: 1 / -1;
+        margin-bottom: 12px;
+      }
+      .item-cell {
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .thumb {
+        width: 68px;
+        height: 88px;
+        object-fit: contain;
+        border-radius: 7px;
+      }
+      .item-text { flex: 1; min-width: 0; }
+      .name {
+        font-size: 1rem;
+        line-height: 1.45;
+        word-break: normal;
+        overflow-wrap: anywhere;
+      }
+      td.mobile-detail {
+        display: grid;
+        gap: 3px;
+        padding: 9px 0;
+        border-top: 1px solid #eee8df;
+        font-size: 1rem;
+      }
+      td.mobile-detail::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      td.qty-cell {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 12px;
+        border-top: 1px solid #eee8df;
+      }
+      td.qty-cell::before {
+        content: attr(data-label);
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      input.qty {
+        width: 110px;
+        min-height: 44px;
+        font-size: 1rem;
+      }
+    }
+
+    label.field {
+      display: grid;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    button:active { transform: translateY(1px); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #f7faf8; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary {
+      background: #efe8dc;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #e7ded0; }
+    .btn-sm { padding: 7px 10px; font-size: 0.82rem; }
+
+    .summary {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fffdf9;
+      min-height: 140px;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .summary.empty {
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+    .summary-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .summary-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.88rem;
+    }
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding-top: 10px;
+      margin-top: 8px;
+      border-top: 1px solid var(--line);
+      font-weight: 700;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(20px);
+      background: #1c1a17;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 40;
+      max-width: min(92vw, 420px);
+      text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 16, 10, 0.45);
+      display: none;
+      place-items: end center;
+      z-index: 30;
+      padding: 16px;
+    }
+    .sheet-backdrop.open { display: grid; }
+    .sheet {
+      width: min(560px, 100%);
+      background: #fffdf9;
+      border-radius: 16px 16px 12px 12px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      max-height: min(88vh, 720px);
+      overflow: auto;
+    }
+    .sheet h3 { margin: 0; font-size: 1.05rem; }
+    .sheet textarea {
+      min-height: 180px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    .sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sheet .btns .full { grid-column: 1 / -1; }
+
+    @media print {
+      body { background: #fff; }
+      .btns, .filters, header .sub, .toast, .sheet-backdrop { display: none !important; }
+      .layout { display: block; }
+      .catalog { max-height: none; overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">Google Sheet · Drive Images</div>
+      <h1>Product Order</h1>
+    </header>
+
+    <div class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Products · Items</h2>
+          <div class="btns">
+            <button type="button" class="btn-secondary btn-sm" id="btnClearQty">Clear Qty</button>
+            <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Google</button>
+          </div>
+        </div>
+
+        <div class="filters">
+          <div class="status-line" id="statusLine">Ready</div>
+          <p class="filter-label">Search product code / name (all brands)</p>
+          <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
+          <p class="note" id="searchHint">검색하거나 아래 브랜드를 선택하세요.</p>
+          <p class="filter-label">Or browse by brand</p>
+          <div class="chips" id="brandChips" role="tablist" aria-label="Brand"></div>
+        </div>
+
+        <div class="catalog" id="catalog">
+          <div class="loading">최신정보로 업데이트 중입니다</div>
+        </div>
+      </section>
+
+      <aside class="panel panel-sticky">
+        <div class="panel-head"><h2>Order</h2></div>
+        <div class="panel-body">
+          <label class="field">Note (optional)
+            <textarea id="orderNote" rows="2" placeholder="Delivery / contact note"></textarea>
+          </label>
+          <div id="summary" class="summary empty">Your selected quantities will appear here.</div>
+          <div class="btns">
+            <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
+            <button type="button" class="btn-secondary" id="btnPrint">Print</button>
+          </div>
+          <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="shareSheet" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-labelledby="shareTitle">
+      <h3 id="shareTitle">Send order via KakaoTalk or SMS</h3>
+      <p class="note">Long-press the text below to copy, or use the buttons.</p>
+      <textarea id="shareText" readonly></textarea>
+      <div class="btns">
+        <button type="button" class="btn-primary" id="btnCopyText">Copy Text</button>
+        <button type="button" class="btn-secondary" id="btnShareNative">Share</button>
+        <button type="button" class="btn-secondary" id="btnSms">Send SMS</button>
+        <button type="button" class="btn-secondary full" id="btnCloseSheet">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="config.js"></script>
+  <script>
+    const CFG = window.APP_CONFIG || {};
+    const DRAFT_KEY = "tester-order-google-draft-v2";
+    const CACHE_KEY = "tester-order-google-cache-v6";
+    /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
+    const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+    const IMAGE_REFRESH_MS = 5 * 60 * 1000;
+    const RESULT_LIMIT = 120;
+    const BRAND_ORDER = ["COLORSILK", "ECOCO", "FANTASIA", "GILLETTE", "YARDLEY"];
+    const UPDATE_MSG = "최신정보로 업데이트 중입니다";
+
+    let products = []; // flat list with brand
+    let brands = [];
+    /** @type {Map<string, {id: string, name: string}>} */
+    let imageIndex = new Map();
+
+    const state = { brand: null, qtys: {} };
+
+    const els = {
+      catalog: document.getElementById("catalog"),
+      brandChips: document.getElementById("brandChips"),
+      search: document.getElementById("search"),
+      summary: document.getElementById("summary"),
+      orderNote: document.getElementById("orderNote"),
+      toast: document.getElementById("toast"),
+      shareSheet: document.getElementById("shareSheet"),
+      shareText: document.getElementById("shareText"),
+      statusLine: document.getElementById("statusLine"),
+      btnReload: document.getElementById("btnReload")
+    };
+
+    function toast(msg) {
+      els.toast.textContent = msg;
+      els.toast.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => els.toast.classList.remove("show"), 2800);
+    }
+
+    function setStatus(html) {
+      els.statusLine.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function money(n) {
+      return "$" + (Number(n) || 0).toFixed(2);
+    }
+
+    function normalizeKey(str) {
+      return String(str || "")
+        .toLowerCase()
+        .replace(/\.(jpe?g|png|webp|gif)$/i, "")
+        .replace(/[\\/:*?"<>|]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    /** Exact item-name ↔ image filename (no extension) match key */
+    function imageBaseName(str) {
+      return String(str || "")
+        .trim()
+        .replace(/\.(jpe?g|png|webp|gif)$/i, "")
+        .replace(/\s+/g, " ");
+    }
+
+    function imageMatchKeys(str) {
+      const base = imageBaseName(str);
+      const lower = base.toLowerCase();
+      // Drive may not allow "/" in filenames — try common replacements
+      return [...new Set([
+        lower,
+        lower.replace(/\//g, "-"),
+        lower.replace(/\//g, "_"),
+        lower.replace(/\//g, " "),
+        normalizeKey(base)
+      ].filter(Boolean))];
+    }
+
+    function extractCode(itemName) {
+      const full = String(itemName || "").trim();
+      let m = full.match(/^COLORSILK\s*#?\s*(\d+[A-Z]*)\b/i);
+      if (m) return m[1];
+      m = full.match(/^(COLORSILK|ECOCO|FANTASIA|YARDLEY|GIL(?:L)?)\s+(.+)$/i);
+      if (m) {
+        const rest = m[2].trim();
+        const m2 = rest.match(/^#?\s*(\d+[A-Z]*)\s+/i);
+        if (m2) return m2[1];
+        return rest.slice(0, 28);
+      }
+      return full.slice(0, 28);
+    }
+
+    function brandOf(name) {
+      const n = String(name || "").trim().toUpperCase();
+      if (n.startsWith("COLORSILK")) return "COLORSILK";
+      if (n.startsWith("ECOCO") || n === "ECO") return "ECOCO";
+      if (n.startsWith("FANTASIA")) return "FANTASIA";
+      if (n.startsWith("YARDLEY")) return "YARDLEY";
+      if (n.startsWith("GIL ") || n.startsWith("GILL") || n === "GILLETTE") return "GILLETTE";
+      return null;
+    }
+
+    /** Brand name shown for a sheet section header row (e.g. "ECO" -> "ECOCO"). */
+    function brandDisplayName(headerName) {
+      const mapped = brandOf(headerName);
+      if (mapped) return mapped;
+      return String(headerName || "").trim().toUpperCase().replace(/\s+/g, " ");
+    }
+
+    function isSectionHeaderRow(name, price, stock) {
+      const n = String(name || "").trim();
+      if (!n) return false;
+      const p = String(price ?? "").trim();
+      const s = String(stock ?? "").trim();
+      // Label row like: COLORSILK | PRICE | STOCK
+      if (p.toUpperCase() === "PRICE" || s.toUpperCase() === "STOCK") return true;
+      // Section divider row like: ECO | (empty) | (empty)
+      if (p === "" && s === "") return true;
+      return false;
+    }
+
+    function brandClass(brand) {
+      const b = String(brand || "").toLowerCase().replace(/[^a-z]/g, "");
+      if (b.includes("colorsilk")) return "colorsilk";
+      if (b.includes("ecoco")) return "ecoco";
+      if (b.includes("fantasia")) return "fantasia";
+      if (b.includes("gillette")) return "gillette";
+      if (b.includes("yardley")) return "yardley";
+      return "";
+    }
+
+    function productKey(p) {
+      return `${p.brand || ""}::${p.name || ""}`.toUpperCase();
+    }
+
+    function driveThumb(fileId, attempt) {
+      const id = encodeURIComponent(fileId);
+      if (attempt === 1) return `https://drive.google.com/thumbnail?id=${id}&sz=w240`;
+      if (attempt === 2) return `https://drive.google.com/uc?export=view&id=${id}`;
+      return `https://lh3.googleusercontent.com/d/${id}=w240`;
+    }
+
+    function resolveImage(product) {
+      if (!imageIndex.size) return null;
+
+      // Match by full Google Sheet item name == image filename (without .jpg)
+      for (const k of imageMatchKeys(product.name)) {
+        if (imageIndex.has(k)) {
+          const img = imageIndex.get(k);
+          return { id: img.id, src: driveThumb(img.id) };
+        }
+      }
+      return null;
+    }
+
+    function onThumbError(img) {
+      const id = img.dataset.driveId;
+      const attempt = Number(img.dataset.attempt || 0) + 1;
+      if (!id || attempt > 2) {
+        img.hidden = true;
+        return;
+      }
+      img.dataset.attempt = String(attempt);
+      img.src = driveThumb(id, attempt);
+    }
+    window.onThumbError = onThumbError;
+
+    /* ---------- CSV / network ---------- */
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+      const src = String(text || "").replace(/^\uFEFF/, "");
+
+      for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        const next = src[i + 1];
+        if (inQuotes) {
+          if (ch === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            cell += ch;
+          }
+          continue;
+        }
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (ch === "\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else if (ch === "\r") {
+          /* skip */
+        } else {
+          cell += ch;
+        }
+      }
+      if (cell.length || row.length) {
+        row.push(cell);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    async function fetchTextViaProxies(url) {
+      const encoded = encodeURIComponent(url);
+      const candidates = [
+        url,
+        `https://api.allorigins.win/raw?url=${encoded}`,
+        `https://corsproxy.io/?${encoded}`
+      ];
+      let lastErr;
+      for (const u of candidates) {
+        try {
+          const res = await fetch(u, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const text = await res.text();
+          if (!text || /accounts\.google\.com\/ServiceLogin/i.test(text)) {
+            throw new Error("Sheet/folder is not publicly shared");
+          }
+          if (/Server-side requests are not allowed/i.test(text)) {
+            throw new Error("Proxy blocked");
+          }
+          return text;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr || new Error("Network failed");
+    }
+
+    function gvizTableToRows(table) {
+      const cols = (table.cols || []).map((c) => c.label || c.id || "");
+      const rows = [cols];
+      for (const r of table.rows || []) {
+        rows.push((r.c || []).map((cell) => {
+          if (!cell) return "";
+          if (cell.v == null) return "";
+          return cell.v;
+        }));
+      }
+      return rows;
+    }
+
+    function loadSheetViaJsonp() {
+      return new Promise((resolve, reject) => {
+        const cbName = `__gsCb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+        const script = document.createElement("script");
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error("Sheet JSONP timeout"));
+        }, 20000);
+
+        function cleanup() {
+          clearTimeout(timer);
+          try { delete window[cbName]; } catch { /* ignore */ }
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[cbName] = (response) => {
+          cleanup();
+          if (!response || response.status !== "ok" || !response.table) {
+            reject(new Error((response && response.errors && response.errors[0] && response.errors[0].detailed_message) || "Sheet query failed"));
+            return;
+          }
+          resolve(gvizTableToRows(response.table));
+        };
+
+        const id = CFG.SHEET_ID;
+        const gid = CFG.SHEET_GID || "0";
+        script.src = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=responseHandler:${cbName}&gid=${encodeURIComponent(gid)}`;
+        script.onerror = () => {
+          cleanup();
+          reject(new Error("Sheet script load failed"));
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    async function fetchSheetWithApiKey() {
+      const key = (CFG.GOOGLE_API_KEY || "").trim();
+      if (!key) return null;
+      const id = CFG.SHEET_ID;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/A:C?key=${encodeURIComponent(key)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Sheets API ${res.status}`);
+      const json = await res.json();
+      return json.values || [];
+    }
+
+    function firstSuccessful(tasks) {
+      return new Promise((resolve, reject) => {
+        let left = tasks.length;
+        let lastErr = new Error("Could not load Google Sheet");
+        let done = false;
+        for (const task of tasks) {
+          Promise.resolve()
+            .then(task)
+            .then((rows) => {
+              if (done) return;
+              if (rows && rows.length > 1) {
+                done = true;
+                resolve(rows);
+              } else if (--left === 0) {
+                reject(lastErr);
+              }
+            })
+            .catch((err) => {
+              lastErr = err;
+              if (!done && --left === 0) reject(lastErr);
+            });
+        }
+      });
+    }
+
+    async function loadSheetRows() {
+      if ((CFG.GOOGLE_API_KEY || "").trim()) {
+        try {
+          const apiRows = await fetchSheetWithApiKey();
+          if (apiRows && apiRows.length) return apiRows;
+        } catch (err) {
+          console.warn("Sheets API failed, falling back", err);
+        }
+      }
+
+      // Race JSONP + CSV — use whichever returns first
+      const gid = CFG.SHEET_GID || "0";
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
+      return firstSuccessful([
+        () => loadSheetViaJsonp(),
+        async () => {
+          const text = await fetchTextViaProxies(csvUrl);
+          return parseCsv(text);
+        }
+      ]);
+    }
+
+    function catalogFromRows(rows) {
+      if (!rows.length) return [];
+      const out = [];
+      const seen = new Set();
+      let currentBrand = null;
+
+      for (const row of rows) {
+        const name = String(row[0] ?? "").trim();
+        if (!name) continue;
+        const priceRaw = row[1];
+        const stockRaw = row[2];
+        // A section header row switches the current brand and adds no item.
+        if (isSectionHeaderRow(name, priceRaw, stockRaw)) {
+          currentBrand = brandDisplayName(name);
+          continue;
+        }
+        // Prefer a recognized brand prefix, else the current sheet section,
+        // else the item's first word. This lets NEW brands work automatically.
+        const brand = brandOf(name) || currentBrand || name.split(/\s+/)[0].toUpperCase();
+        const dedupe = `${brand}::${name}`.toUpperCase();
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        out.push({
+          id: out.length + 1,
+          brand,
+          code: extractCode(name),
+          name,
+          price: Number(priceRaw) || 0,
+          stock: Number(stockRaw) || 0
+        });
+      }
+      return out;
+    }
+
+    function syncBrands() {
+      const present = new Set(products.map((p) => p.brand));
+      brands = BRAND_ORDER.filter((b) => present.has(b));
+      for (const b of present) {
+        if (!brands.includes(b)) brands.push(b);
+      }
+      if (state.brand && !brands.includes(state.brand)) state.brand = null;
+    }
+
+    /* ---------- Drive images ---------- */
+
+    async function fetchDriveWithApiKey() {
+      const key = (CFG.GOOGLE_API_KEY || "").trim();
+      if (!key) return null;
+      const folderId = CFG.DRIVE_FOLDER_ID;
+      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+      const fields = encodeURIComponent("files(id,name,mimeType),nextPageToken");
+      let pageToken = "";
+      const files = [];
+      do {
+        const page = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+        const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${encodeURIComponent(key)}${page}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Drive API ${res.status}`);
+        const json = await res.json();
+        files.push(...(json.files || []));
+        pageToken = json.nextPageToken || "";
+      } while (pageToken);
+      return files;
+    }
+
+    function parseDriveFolderHtml(html) {
+      const files = [];
+      const trRe = /<tr[^>]*data-id="(1[a-zA-Z0-9_-]{20,})"[^>]*>([\s\S]*?)<\/tr>/gi;
+      let m;
+      while ((m = trRe.exec(html))) {
+        const id = m[1];
+        const block = m[2];
+        const nameMatch =
+          block.match(/>([^<>]+\.(?:jpe?g|png|webp|gif))</i) ||
+          block.match(/aria-label="([^"]+\.(?:jpe?g|png|webp|gif))"/i);
+        if (!nameMatch) continue;
+        files.push({ id, name: nameMatch[1].trim() });
+      }
+      return files;
+    }
+
+    function embeddedDriveImages() {
+      const list = window.DRIVE_IMAGES;
+      return Array.isArray(list) ? list : [];
+    }
+
+    async function loadImagesMapFile() {
+      try {
+        // Cache-busting is required because GitHub Pages may cache this file.
+        const res = await fetch(`images-map.json?v=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return Array.isArray(json) ? json : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function mergeImageFiles(...lists) {
+      const byId = new Map();
+      for (const list of lists) {
+        for (const f of list || []) {
+          if (!f || !f.id || !f.name) continue;
+          byId.set(f.id, { id: f.id, name: String(f.name).trim() });
+        }
+      }
+      return [...byId.values()];
+    }
+
+    async function loadDriveImages(forceLive) {
+      const embedded = embeddedDriveImages();
+      const hasApiKey = Boolean((CFG.GOOGLE_API_KEY || "").trim());
+
+      // A configured API key can read Drive directly. Otherwise GitHub Actions
+      // keeps images-map.json synchronized with the public Drive folder.
+      if (hasApiKey && forceLive) {
+        try {
+          const apiFiles = await fetchDriveWithApiKey();
+          const live = (apiFiles || []).filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || ""));
+          if (live.length) return mergeImageFiles(embedded, live);
+        } catch (err) {
+          console.warn("Drive API failed, using synchronized image map", err);
+        }
+      }
+
+      const mapped = await loadImagesMapFile();
+      return mergeImageFiles(embedded, mapped);
+    }
+
+    function buildImageIndex(files) {
+      const map = new Map();
+      for (const f of files || []) {
+        const name = String(f.name || "").trim();
+        if (!name || !f.id) continue;
+        const base = imageBaseName(name);
+        for (const k of imageMatchKeys(base)) {
+          map.set(k, { id: f.id, name });
+        }
+      }
+      return map;
+    }
+
+    /* ---------- UI ---------- */
+
+    function scoreProduct(p, query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return 0;
+      const name = p.name.toLowerCase();
+      const code = String(p.code).toLowerCase();
+      const brand = String(p.brand || "").toLowerCase();
+      if (code === q) return 100;
+      if (code.includes(q)) return 90;
+      if (brand === q) return 85;
+      if (name.startsWith(q)) return 80;
+      if (name.includes(q) || brand.includes(q)) return 60;
+      const words = q.split(/\s+/).filter((w) => w.length >= 2);
+      if (words.length && words.every((w) => name.includes(w) || code.includes(w) || brand.includes(w))) {
+        return 40;
+      }
+      return 0;
+    }
+
+    function searchProducts(query) {
+      const q = query.trim();
+      if (!q) return [];
+      const hits = [];
+      for (const p of products) {
+        const score = scoreProduct(p, q);
+        if (score <= 0) continue;
+        hits.push({ score, ...p });
+      }
+      hits.sort((a, b) => b.score - a.score || a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name));
+      return hits.slice(0, RESULT_LIMIT);
+    }
+
+    function renderBrandChips() {
+      els.brandChips.innerHTML = brands.map((b) => `
+        <button type="button" class="chip ${state.brand === b ? "active" : ""}" data-brand="${escapeHtml(b)}">${escapeHtml(b)}</button>
+      `).join("");
+    }
+
+    function renderOptionRow(p) {
+      const qty = state.qtys[productKey(p)] || 0;
+      const stockClass = p.stock <= 0 ? "out" : "";
+      const img = resolveImage(p);
+      return `
+        <tr>
+          <td class="item-column">
+            <div class="item-cell">
+              ${img ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy"
+                referrerpolicy="no-referrer"
+                data-drive-id="${escapeHtml(img.id)}" data-attempt="0"
+                onerror="onThumbError(this)" />` : `<span class="thumb" hidden></span>`}
+              <div class="item-text">
+                <div class="name">${escapeHtml(p.name)}</div>
+              </div>
+            </div>
+          </td>
+          <td class="price mobile-detail" data-label="Price">${money(p.price)}</td>
+          <td class="stock mobile-detail ${stockClass}" data-label="Stock">${p.stock <= 0 ? "0 (Out of stock)" : p.stock}</td>
+          <td class="qty-cell" data-label="Order Qty">
+            <input class="qty" type="number" min="0" step="1" value="${qty}"
+              data-key="${escapeHtml(productKey(p))}" inputmode="numeric"
+              aria-label="${escapeHtml(p.name)} quantity" />
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderProductTable(title, list, badgeBrand) {
+      return `
+        <article class="product-block">
+          <div class="product-head">
+            <div>
+              <strong>${escapeHtml(title)}</strong>
+              <span>${list.length} items</span>
+            </div>
+            ${badgeBrand ? `<span class="badge ${brandClass(badgeBrand)}">${escapeHtml(badgeBrand)}</span>` : ""}
+          </div>
+          <table>
+            <thead>
+              <tr><th>Description</th><th>Price</th><th>Stock</th><th>Order Qty</th></tr>
+            </thead>
+            <tbody>${list.map(renderOptionRow).join("")}</tbody>
+          </table>
+        </article>
+      `;
+    }
+
+    function renderCatalog() {
+      if (!products.length) {
+        els.catalog.innerHTML = `<div class="empty-hint">No products loaded. Tap Reload Google.</div>`;
+        return;
+      }
+
+      const query = els.search.value.trim();
+      if (query) {
+        const hits = searchProducts(query);
+        if (!hits.length) {
+          els.catalog.innerHTML = `<div class="empty-hint">No products match "${escapeHtml(query)}".</div>`;
+          return;
+        }
+        const byBrand = new Map();
+        for (const hit of hits) {
+          if (!byBrand.has(hit.brand)) byBrand.set(hit.brand, []);
+          byBrand.get(hit.brand).push(hit);
+        }
+        els.catalog.innerHTML = `
+          <div class="note" style="padding:0 0 4px;">${hits.length} matches · ${byBrand.size} brands</div>
+          ${[...byBrand.entries()].map(([brand, list]) => renderProductTable(brand, list, brand)).join("")}
+        `;
+        return;
+      }
+
+      if (!state.brand) {
+        els.catalog.innerHTML = `<div class="empty-hint">Search for a product above, or select a brand.<br/>Catalog: ${products.length} items · Photos: ${imageIndex.size}</div>`;
+        return;
+      }
+
+      const list = products.filter((p) => p.brand === state.brand);
+      els.catalog.innerHTML = renderProductTable(state.brand, list, state.brand);
+    }
+
+    function getItems() {
+      const items = [];
+      const byKey = new Map(products.map((p) => [productKey(p), p]));
+      for (const [k, qty] of Object.entries(state.qtys)) {
+        if (!qty || qty <= 0) continue;
+        const p = byKey.get(k);
+        if (!p) continue;
+        items.push({ ...p, qty });
+      }
+      return items;
+    }
+
+    function updateSummary() {
+      const items = getItems();
+      if (!items.length) {
+        els.summary.className = "summary empty";
+        els.summary.textContent = "Your selected quantities will appear here.";
+        return;
+      }
+      const total = items.reduce((s, i) => s + i.qty, 0);
+      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
+      els.summary.className = "summary";
+      els.summary.innerHTML = `
+        <ul class="summary-list">
+          ${items.map((i) => `
+            <li>
+              <span>${escapeHtml(i.name)}</span>
+              <span>${money(i.price)} · × ${i.qty}</span>
+            </li>
+          `).join("")}
+        </ul>
+        <div class="total-row"><span>Total</span><span>${total} pcs · ${money(totalMoney)}</span></div>
+      `;
+    }
+
+    function orderText() {
+      const items = getItems();
+      const groups = new Map();
+      for (const item of items) {
+        if (!groups.has(item.brand)) groups.set(item.brand, []);
+        groups.get(item.brand).push(item);
+      }
+      const lines = ["[Product Order · Google]", ""];
+      for (const [brand, list] of groups.entries()) {
+        lines.push(brand);
+        list.forEach((i) => lines.push(`${i.name} ${money(i.price)} × ${i.qty}`));
+        lines.push("");
+      }
+      const totalQty = items.reduce((s, i) => s + i.qty, 0);
+      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
+      lines.push(`Total: ${totalQty} pcs · ${money(totalMoney)}`);
+      const note = els.orderNote.value.trim();
+      if (note) {
+        lines.push("");
+        lines.push(`Note: ${note}`);
+      }
+      return lines.join("\n");
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch { /* fall through */ }
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+
+    function openShareSheet(text) {
+      els.shareText.value = text;
+      els.shareSheet.classList.add("open");
+      els.shareSheet.setAttribute("aria-hidden", "false");
+      setTimeout(() => {
+        els.shareText.focus();
+        els.shareText.select();
+      }, 50);
+    }
+
+    function closeShareSheet() {
+      els.shareSheet.classList.remove("open");
+      els.shareSheet.setAttribute("aria-hidden", "true");
+    }
+
+    function smsHref(text) {
+      const body = encodeURIComponent(text);
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent || "")) return `sms:&body=${body}`;
+      return `sms:?body=${body}`;
+    }
+
+    async function shareNative(text) {
+      if (!navigator.share) return false;
+      try {
+        await navigator.share({ title: "Product Order", text });
+        return true;
+      } catch (err) {
+        if (err && err.name === "AbortError") return true;
+        return false;
+      }
+    }
+
+    function saveDraft() {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        note: els.orderNote.value,
+        brand: state.brand,
+        qtys: state.qtys,
+        search: els.search.value
+      }));
+    }
+
+    function loadDraft() {
+      try {
+        const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+        if (!draft) return;
+        els.orderNote.value = draft.note || "";
+        els.search.value = draft.search || "";
+        if (draft.brand) state.brand = draft.brand;
+        if (draft.qtys && typeof draft.qtys === "object") state.qtys = draft.qtys;
+      } catch { /* ignore */ }
+    }
+
+    function saveCache(rows, files) {
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          savedAt: Date.now(),
+          rows,
+          files
+        }));
+      } catch { /* quota */ }
+    }
+
+    function loadCache() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+        if (!cached || !Array.isArray(cached.rows)) return null;
+        return cached;
+      } catch {
+        return null;
+      }
+    }
+
+    function refresh() {
+      renderBrandChips();
+      renderCatalog();
+      updateSummary();
+      saveDraft();
+    }
+
+    async function refreshImagesOnly() {
+      try {
+        const files = await loadDriveImages(false);
+        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
+        renderCatalog();
+      } catch (err) {
+        console.warn("Image map refresh failed", err);
+      }
+    }
+
+    async function loadFromGoogle(force) {
+      els.btnReload.disabled = true;
+
+      const cached = !force ? loadCache() : null;
+      const cacheAge = cached && cached.savedAt ? Date.now() - cached.savedAt : Infinity;
+      const cacheFresh = cacheAge < CACHE_MAX_AGE_MS;
+
+      if (cached && cached.rows && cached.rows.length) {
+        products = catalogFromRows(cached.rows);
+        syncBrands();
+        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), cached.files || []));
+        refresh();
+        if (cacheFresh && !force) {
+          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+          els.btnReload.disabled = false;
+          // Keep the cached catalog visible immediately, then update photos in background.
+          refreshImagesOnly();
+          return;
+        }
+        setStatus(`<span class="ok">${UPDATE_MSG}</span>`);
+      } else {
+        els.catalog.innerHTML = `<div class="loading">${UPDATE_MSG}</div>`;
+        setStatus(UPDATE_MSG);
+      }
+
+      try {
+        const [rows, files] = await Promise.all([
+          loadSheetRows(),
+          loadDriveImages(!!force).catch((err) => {
+            console.warn(err);
+            return embeddedDriveImages();
+          })
+        ]);
+        products = catalogFromRows(rows);
+        syncBrands();
+        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
+        saveCache(rows, files);
+        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+        refresh();
+        if (force) toast(`Loaded ${products.length} products`);
+      } catch (err) {
+        console.error(err);
+        if (!products.length) {
+          els.catalog.innerHTML = `<div class="empty-hint">Failed to load Google Sheet.<br/>공유 설정을 “링크가 있는 모든 사용자”로 바꿔 주세요.<br/><span class="err">${escapeHtml(err.message || err)}</span></div>`;
+        }
+        setStatus(`<span class="err">Load failed</span> · ${escapeHtml(err.message || "error")}`);
+        if (!products.length) toast("Google data load failed");
+      } finally {
+        els.btnReload.disabled = false;
+      }
+    }
+
+    els.brandChips.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-brand]");
+      if (!btn) return;
+      state.brand = btn.dataset.brand;
+      els.search.value = "";
+      refresh();
+    });
+
+    els.catalog.addEventListener("input", (e) => {
+      if (!e.target.classList.contains("qty")) return;
+      let qty = Number(e.target.value) || 0;
+      if (qty < 0) qty = 0;
+      e.target.value = qty;
+      const k = e.target.dataset.key;
+      if (qty > 0) state.qtys[k] = qty;
+      else delete state.qtys[k];
+      updateSummary();
+      saveDraft();
+    });
+
+    els.search.addEventListener("input", () => {
+      if (els.search.value.trim()) state.brand = null;
+      refresh();
+    });
+
+    els.orderNote.addEventListener("input", saveDraft);
+
+    document.getElementById("btnClearQty").addEventListener("click", () => {
+      state.qtys = {};
+      refresh();
+      toast("Quantities cleared.");
+    });
+
+    els.btnReload.addEventListener("click", () => loadFromGoogle(true));
+
+    document.getElementById("btnSave").addEventListener("click", async () => {
+      const items = getItems();
+      if (!items.length) return toast("Enter at least one quantity.");
+      const text = orderText();
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+      if (isMobile && navigator.share) {
+        const shared = await shareNative(text);
+        if (shared) {
+          toast("Share sheet opened.");
+          return;
+        }
+      }
+      openShareSheet(text);
+      const ok = await copyText(text);
+      toast(ok ? "Order copied." : "Long-press the text to copy.");
+    });
+
+    document.getElementById("btnCopyText").addEventListener("click", async () => {
+      const ok = await copyText(els.shareText.value);
+      toast(ok ? "Copied." : "Copy failed. Long-press the text.");
+    });
+
+    document.getElementById("btnShareNative").addEventListener("click", async () => {
+      if (!navigator.share) return toast("Sharing not supported. Use Copy Text.");
+      await shareNative(els.shareText.value);
+    });
+
+    document.getElementById("btnSms").addEventListener("click", () => {
+      window.location.href = smsHref(els.shareText.value);
+    });
+
+    document.getElementById("btnCloseSheet").addEventListener("click", closeShareSheet);
+    els.shareSheet.addEventListener("click", (e) => {
+      if (e.target === els.shareSheet) closeShareSheet();
+    });
+    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+
+    loadDraft();
+    // Seed photos immediately (works even when Drive listing is blocked)
+    imageIndex = buildImageIndex(embeddedDriveImages());
+    loadFromGoogle(false);
+    setInterval(refreshImagesOnly, IMAGE_REFRESH_MS);
+  </script>
+</body>
+</html>

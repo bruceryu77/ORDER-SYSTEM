@@ -1,0 +1,45 @@
+name: Sync Google Drive images
+
+on:
+  schedule:
+    # GitHub scheduled workflows use UTC and may occasionally start late.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-google-drive-images
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Read public Drive folder
+        run: node sync-drive-images.js
+
+      - name: Commit changed image map
+        shell: bash
+        run: |
+          if git diff --quiet -- config.js images-map.json; then
+            echo "No image changes found."
+            exit 0
+          fi
+
+          git add config.js images-map.json
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore: sync Google Drive images"
+          git push
