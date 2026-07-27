@@ -1618,8 +1618,8 @@
           <td class="price mobile-detail" data-label="Price">${money(p.price)}</td>
           <td class="stock mobile-detail ${stockClass}" data-label="Stock">${p.stock <= 0 ? "0 (Out of stock)" : p.stock}</td>
           <td class="qty-cell" data-label="Order Qty">
-            <input class="qty" type="number" min="0" step="1" value="${qty}"
-              data-key="${escapeHtml(productKey(p))}" inputmode="numeric"
+            <input class="qty" type="number" min="0" step="1" value="${qty > 0 ? qty : ""}"
+              data-key="${escapeHtml(productKey(p))}" inputmode="numeric" placeholder=""
               aria-label="${escapeHtml(p.name)} quantity" />
           </td>
         </tr>
