@@ -1906,7 +1906,7 @@
         syncBrands();
         imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
         saveCache(rows, files);
-        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${upcIndex.size} UPC · ${imageIndex.size} photos`);
         refresh();
         if (force) toast(`Loaded ${products.length} products · ${imageIndex.size} photos`);
       } catch (err) {
