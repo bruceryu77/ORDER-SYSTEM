@@ -841,7 +841,7 @@
   <script>
     const CFG = window.APP_CONFIG || {};
     const DRAFT_KEY = "tester-order-google-draft-v2";
-    const CACHE_KEY = "tester-order-google-cache-v8";
+    const CACHE_KEY = "tester-order-google-cache-v9";
     /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
     /** How often the open app re-checks images-map.json (ms). */
@@ -1163,29 +1163,34 @@
       return json.values || [];
     }
 
-    function firstSuccessful(tasks) {
-      return new Promise((resolve, reject) => {
-        let left = tasks.length;
-        let lastErr = new Error("Could not load Google Sheet");
-        let done = false;
-        for (const task of tasks) {
-          Promise.resolve()
-            .then(task)
-            .then((rows) => {
-              if (done) return;
-              if (rows && rows.length > 1) {
-                done = true;
-                resolve(rows);
-              } else if (--left === 0) {
-                reject(lastErr);
-              }
-            })
-            .catch((err) => {
-              lastErr = err;
-              if (!done && --left === 0) reject(lastErr);
-            });
+    function countUpcCells(rows) {
+      if (!rows || rows.length < 2) return 0;
+      const header = (rows[0] || []).map((c) => String(c ?? "").trim().toLowerCase());
+      let upcIdx = header.indexOf("upc");
+      let start = 0;
+      if (upcIdx >= 0) start = 1;
+      else upcIdx = Math.min(4, (rows[0] || []).length - 1);
+      let n = 0;
+      for (let i = start; i < rows.length; i++) {
+        if (normalizeUpcDigits((rows[i] || [])[upcIdx])) n++;
+      }
+      return n;
+    }
+
+    /** Prefer the richest sheet payload (gviz often drops leading-zero UPCs). */
+    function pickBestSheetRows(candidates) {
+      let best = null;
+      let bestScore = -1;
+      for (const rows of candidates) {
+        if (!rows || rows.length < 2) continue;
+        const upcCount = countUpcCells(rows);
+        const score = upcCount * 1000 + rows.length;
+        if (score > bestScore) {
+          bestScore = score;
+          best = rows;
         }
-      });
+      }
+      return best;
     }
 
     async function loadSheetRows() {
@@ -1198,16 +1203,26 @@
         }
       }
 
-      // Race JSONP + CSV — use whichever returns first
       const gid = CFG.SHEET_GID || "0";
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
-      return firstSuccessful([
-        () => loadSheetViaJsonp(),
-        async () => {
-          const text = await fetchTextViaProxies(csvUrl);
-          return parseCsv(text);
-        }
+      // /export keeps text UPCs (incl. leading zeros). gviz number column drops many of them.
+      const exportCsvUrl = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+      const gvizCsvUrl = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${encodeURIComponent(gid)}`;
+
+      const results = await Promise.allSettled([
+        fetchTextViaProxies(exportCsvUrl).then(parseCsv),
+        fetchTextViaProxies(gvizCsvUrl).then(parseCsv),
+        loadSheetViaJsonp()
       ]);
+
+      const candidates = results
+        .filter((r) => r.status === "fulfilled" && r.value && r.value.length > 1)
+        .map((r) => r.value);
+
+      const best = pickBestSheetRows(candidates);
+      if (best) return best;
+
+      const lastErr = results.find((r) => r.status === "rejected");
+      throw (lastErr && lastErr.reason) || new Error("Could not load Google Sheet");
     }
 
     function catalogFromRows(rows) {
@@ -1243,7 +1258,9 @@
 
         const priceRaw = priceIdx >= 0 ? row[priceIdx] : "";
         const stockRaw = stockIdx >= 0 ? row[stockIdx] : "";
-        const upc = normalizeUpcDigits(upcIdx >= 0 ? row[upcIdx] : "");
+        // Keep raw text first so leading zeros from CSV are preserved, then digitize.
+        const upcRaw = upcIdx >= 0 ? row[upcIdx] : "";
+        const upc = normalizeUpcDigits(upcRaw);
 
         const dedupe = `${brand}::${name}`.toUpperCase();
         if (seen.has(dedupe)) continue;
@@ -1259,6 +1276,14 @@
         });
       }
       return out;
+    }
+
+    function upcProductCount() {
+      return products.reduce((n, p) => n + (p.upc ? 1 : 0), 0);
+    }
+
+    function statusReadyHtml() {
+      return `<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${upcProductCount()} UPC · ${imageIndex.size} photos`;
     }
 
     function syncBrands() {
@@ -1882,7 +1907,7 @@
         imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), cached.files || []));
         refresh();
         if (cacheFresh && !force) {
-          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${upcIndex.size} UPC · ${imageIndex.size} photos`);
+          setStatus(statusReadyHtml());
           els.btnReload.disabled = false;
           // Keep the cached catalog visible immediately, then update photos in background.
           refreshImagesOnly();
@@ -1906,9 +1931,9 @@
         syncBrands();
         imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
         saveCache(rows, files);
-        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${upcIndex.size} UPC · ${imageIndex.size} photos`);
+        setStatus(statusReadyHtml());
         refresh();
-        if (force) toast(`Loaded ${products.length} products · ${imageIndex.size} photos`);
+        if (force) toast(`Loaded ${products.length} products · ${upcProductCount()} UPC · ${imageIndex.size} photos`);
       } catch (err) {
         console.error(err);
         if (!products.length) {
