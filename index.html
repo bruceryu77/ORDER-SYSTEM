@@ -841,7 +841,7 @@
   <script>
     const CFG = window.APP_CONFIG || {};
     const DRAFT_KEY = "tester-order-google-draft-v2";
-    const CACHE_KEY = "tester-order-google-cache-v7";
+    const CACHE_KEY = "tester-order-google-cache-v8";
     /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
     /** How often the open app re-checks images-map.json (ms). */
@@ -1105,7 +1105,12 @@
       for (const r of table.rows || []) {
         rows.push((r.c || []).map((cell) => {
           if (!cell) return "";
+          // Prefer formatted text for UPC-like numbers (avoids float/precision issues).
+          if (cell.f != null && String(cell.f).trim() !== "") return String(cell.f).trim();
           if (cell.v == null) return "";
+          if (typeof cell.v === "number" && Number.isFinite(cell.v)) {
+            return String(Math.round(cell.v));
+          }
           return cell.v;
         }));
       }
@@ -1238,7 +1243,7 @@
 
         const priceRaw = priceIdx >= 0 ? row[priceIdx] : "";
         const stockRaw = stockIdx >= 0 ? row[stockIdx] : "";
-        const upc = upcIdx >= 0 ? String(row[upcIdx] ?? "").trim() : "";
+        const upc = normalizeUpcDigits(upcIdx >= 0 ? row[upcIdx] : "");
 
         const dedupe = `${brand}::${name}`.toUpperCase();
         if (seen.has(dedupe)) continue;
@@ -1263,23 +1268,99 @@
       rebuildUpcIndex();
     }
 
+    /** Digits-only UPC/EAN string (handles Sheet numbers / decimals / scientific). */
+    function normalizeUpcDigits(raw) {
+      if (raw == null || raw === "") return "";
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        return String(Math.round(raw));
+      }
+      let s = String(raw).trim();
+      if (!s) return "";
+      if (/e/i.test(s) && Number.isFinite(Number(s))) {
+        return String(Math.round(Number(s)));
+      }
+      if (/^\d+\.0+$/.test(s)) s = s.replace(/\.0+$/, "");
+      return s.replace(/\D/g, "");
+    }
+
+    /** Expand UPC-E (6–8 digits) to UPC-A (12 digits) body+check when possible. */
+    function expandUpcE(code) {
+      const digits = normalizeUpcDigits(code);
+      let ns;
+      let body;
+      let check = "";
+      if (digits.length === 8) {
+        ns = digits[0];
+        body = digits.slice(1, 7);
+        check = digits[7];
+      } else if (digits.length === 7) {
+        ns = digits[0];
+        body = digits.slice(1, 7);
+      } else if (digits.length === 6) {
+        ns = "0";
+        body = digits;
+      } else {
+        return null;
+      }
+      const last = body[5];
+      let mid;
+      if (last <= "2") mid = body.slice(0, 2) + last + "0000" + body.slice(2, 5);
+      else if (last === "3") mid = body.slice(0, 3) + "00000" + body.slice(3, 5);
+      else if (last === "4") mid = body.slice(0, 4) + "00000" + body[4];
+      else mid = body.slice(0, 5) + "0000" + last;
+      const upc11 = ns + mid;
+      return check ? upc11 + check : upc11;
+    }
+
     function getBarcodeLookupKeys(barcode) {
       const keys = new Set();
       if (!barcode) return keys;
+
       const raw = String(barcode).trim();
       keys.add(raw);
-      const digitsOnly = raw.replace(/\D/g, "");
-      if (digitsOnly) {
-        keys.add(digitsOnly);
-        const withoutLeadingZeros = digitsOnly.replace(/^0+/, "");
-        if (withoutLeadingZeros) keys.add(withoutLeadingZeros);
-        [12, 13, 14].forEach((length) => {
-          if (digitsOnly.length < length) keys.add(digitsOnly.padStart(length, "0"));
-          if (withoutLeadingZeros && withoutLeadingZeros.length < length) {
-            keys.add(withoutLeadingZeros.padStart(length, "0"));
-          }
-        });
+
+      const digitsOnly = normalizeUpcDigits(raw);
+      if (!digitsOnly) return keys;
+
+      keys.add(digitsOnly);
+
+      const withoutLeadingZeros = digitsOnly.replace(/^0+/, "");
+      if (withoutLeadingZeros) keys.add(withoutLeadingZeros);
+
+      // UPC-A ↔ EAN-13 (leading zero)
+      if (digitsOnly.length === 13 && digitsOnly.startsWith("0")) {
+        keys.add(digitsOnly.slice(1));
       }
+      if (digitsOnly.length === 12) {
+        keys.add("0" + digitsOnly);
+      }
+      if (digitsOnly.length > 12) {
+        keys.add(digitsOnly.slice(-12));
+        keys.add(digitsOnly.slice(-13));
+      }
+
+      [12, 13, 14].forEach((length) => {
+        if (digitsOnly.length < length) keys.add(digitsOnly.padStart(length, "0"));
+        if (withoutLeadingZeros && withoutLeadingZeros.length < length) {
+          keys.add(withoutLeadingZeros.padStart(length, "0"));
+        }
+      });
+
+      // UPC-E short codes
+      if (digitsOnly.length >= 6 && digitsOnly.length <= 8) {
+        const expanded = expandUpcE(digitsOnly);
+        if (expanded) {
+          keys.add(expanded);
+          const expNoZero = expanded.replace(/^0+/, "");
+          if (expNoZero) keys.add(expNoZero);
+          if (expanded.length === 12) keys.add("0" + expanded);
+          if (expanded.length === 11) {
+            keys.add(expanded);
+            keys.add("0" + expanded);
+          }
+        }
+      }
+
       return keys;
     }
 
@@ -1801,7 +1882,7 @@
         imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), cached.files || []));
         refresh();
         if (cacheFresh && !force) {
-          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${upcIndex.size} UPC · ${imageIndex.size} photos`);
           els.btnReload.disabled = false;
           // Keep the cached catalog visible immediately, then update photos in background.
           refreshImagesOnly();
@@ -1957,9 +2038,11 @@
         lastDetectTime = now;
         try {
           const barcodes = await barcodeDetector.detect(video);
-          if (barcodes.length > 0 && isScanning && scanSessionActive) {
+          if (barcodes.length > 0 && isScanning && scanSessionActive && !isProcessingScan) {
             drawBoxFromBarcodeDetector(barcodes[0]);
             setScanStatus("스캔 중...", "detecting");
+            const value = String(barcodes[0].rawValue || "").trim();
+            if (value) handleScanSuccess(value, null);
           } else if (!isProcessingScan) {
             clearScanCanvas();
             setScanStatus("바코드를 맞춰주세요", "scanning");
@@ -1977,7 +2060,9 @@
     }
 
     function isValidBarcode(text) {
-      const trimmed = text ? text.trim() : "";
+      const digits = normalizeUpcDigits(text);
+      if (digits.length >= 6 && digits.length <= 18) return true;
+      const trimmed = text ? String(text).trim() : "";
       return trimmed.length >= 3 && /^[A-Za-z0-9\-_]+$/.test(trimmed);
     }
 
