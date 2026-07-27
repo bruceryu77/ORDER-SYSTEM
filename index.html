@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
   <style>
     :root {
       --bg: #f3efe7;
@@ -29,7 +30,7 @@
         radial-gradient(900px 500px at 100% 0%, #e4ebe4 0%, transparent 50%),
         var(--bg);
     }
-    .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 40px; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 88px; }
     header { margin-bottom: 22px; }
     .eyebrow {
       font-size: 0.72rem;
@@ -50,13 +51,9 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 1.5fr 0.9fr;
+      grid-template-columns: 1fr;
       gap: 16px;
       align-items: start;
-    }
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .panel-sticky { position: static; }
     }
 
     .panel {
@@ -66,7 +63,6 @@
       box-shadow: var(--shadow);
       overflow: hidden;
     }
-    .panel-sticky { position: sticky; top: 12px; }
     .panel-head {
       display: flex;
       justify-content: space-between;
@@ -136,7 +132,7 @@
     .badge.gillette { background: #e8f0f4; color: #2a5568; }
     .badge.yardley { background: #eef3e6; color: #4a5c2e; }
 
-    input[type="search"], input[type="number"], textarea {
+    input[type="search"], input[type="number"], textarea, select {
       width: 100%;
       border: 1px solid var(--line);
       background: #fff;
@@ -145,7 +141,20 @@
       font: inherit;
       color: var(--ink);
     }
-    input:focus, textarea:focus {
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+        linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 36px;
+    }
+    input:focus, textarea:focus, select:focus {
       outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
       outline-offset: 1px;
     }
@@ -372,13 +381,185 @@
     .btn-secondary:hover:not(:disabled) { background: #e7ded0; }
     .btn-sm { padding: 7px 10px; font-size: 0.82rem; }
 
+    .search-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .search-row input[type="search"] { flex: 1; min-width: 0; }
+    .search-row .btn-scan {
+      flex-shrink: 0;
+      white-space: nowrap;
+      min-width: 88px;
+    }
+
+    /* Camera barcode scan overlay */
+    #cameraOverlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      flex-direction: column;
+      z-index: 1100;
+    }
+    .camera-container {
+      background: #000;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    .camera-viewport {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background: #000;
+    }
+    #cameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #scanCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .scan-status {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(40, 40, 40, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      z-index: 12;
+      font-weight: 600;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    .scan-status.detecting { background: rgba(40, 40, 40, 0.9); }
+    .scan-status.success { background: rgba(76, 175, 80, 0.95); color: #fff; }
+    .scan-tap-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .scan-tap-overlay.hidden { display: none; }
+    .scan-tap-btn {
+      background: rgba(50, 50, 50, 0.9);
+      color: #fff;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 28px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .scan-tap-btn:active { transform: scale(0.97); }
+    .scan-line {
+      position: absolute;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #e53935, transparent);
+      box-shadow: 0 0 8px rgba(229, 57, 53, 0.6);
+      z-index: 11;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .scan-line.active {
+      opacity: 1;
+      animation: scanLineMove 2s ease-in-out infinite;
+    }
+    @keyframes scanLineMove {
+      0%, 100% { top: 25%; }
+      50% { top: 75%; }
+    }
+    .camera-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 20;
+      gap: 12px;
+    }
+    .cam-tool-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cam-tool-btn.active { background: rgba(255, 255, 255, 0.2); }
+    .cam-tool-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .zoom-toggle {
+      display: flex;
+      background: rgba(60, 60, 60, 0.8);
+      border-radius: 24px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .zoom-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .zoom-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .zoom-btn.active {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border-radius: 20px;
+    }
+    .cam-close-btn {
+      background: rgba(80, 80, 80, 0.8);
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: auto;
+    }
+
     .summary {
       border: 1px dashed var(--line);
       border-radius: 12px;
       padding: 12px;
       background: #fffdf9;
-      min-height: 140px;
-      max-height: 360px;
+      min-height: 120px;
+      max-height: min(50vh, 420px);
       overflow: auto;
     }
     .summary.empty {
@@ -386,14 +567,64 @@
       display: grid;
       place-items: center;
       text-align: center;
+      min-height: 120px;
     }
-    .summary-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-    .summary-list li {
+    .cart-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .cart-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .cart-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .cart-item-name {
+      grid-column: 1 / -1;
+      font-weight: 700;
+      font-size: 0.9rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .cart-item-controls {
       display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 0.88rem;
+      align-items: center;
+      gap: 6px;
     }
+    .cart-qty-btn {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      font: inherit;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .cart-qty-btn:hover { background: #f3eee6; }
+    .cart-qty-val {
+      min-width: 36px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .cart-del-btn {
+      width: 34px;
+      height: 34px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--warn);
+      font: inherit;
+      font-size: 1.15rem;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .cart-del-btn:hover { background: #f8ebe8; }
     .total-row {
       display: flex;
       justify-content: space-between;
@@ -402,6 +633,47 @@
       border-top: 1px solid var(--line);
       font-weight: 700;
     }
+
+    .cart-fab {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(18px, env(safe-area-inset-bottom));
+      z-index: 25;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 18px;
+      background: var(--accent);
+      color: #f7faf8;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(47, 93, 74, 0.35);
+    }
+    .cart-fab:hover { background: var(--accent-hover); }
+    .cart-badge {
+      display: inline-grid;
+      place-items: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    .cart-badge[hidden] { display: none; }
+    .cart-sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .cart-sheet-head h3 { margin: 0; font-size: 1.05rem; }
 
     .toast {
       position: fixed;
@@ -432,6 +704,7 @@
       padding: 16px;
     }
     .sheet-backdrop.open { display: grid; }
+    #shareSheet { z-index: 32; }
     .sheet {
       width: min(560px, 100%);
       background: #fffdf9;
@@ -445,18 +718,19 @@
     }
     .sheet h3 { margin: 0; font-size: 1.05rem; }
     .sheet textarea {
-      min-height: 180px;
+      min-height: 72px;
       font-size: 0.95rem;
       line-height: 1.5;
       -webkit-user-select: text;
       user-select: text;
     }
+    #shareText { min-height: 180px; }
     .sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sheet .btns .full { grid-column: 1 / -1; }
 
     @media print {
       body { background: #fff; }
-      .btns, .filters, header .sub, .toast, .sheet-backdrop { display: none !important; }
+      .btns, .filters, header .sub, .toast, .sheet-backdrop, #cameraOverlay, .cart-fab { display: none !important; }
       .layout { display: block; }
       .catalog { max-height: none; overflow: visible; }
     }
@@ -474,39 +748,52 @@
         <div class="panel-head">
           <h2>Products · Items</h2>
           <div class="btns">
-            <button type="button" class="btn-secondary btn-sm" id="btnClearQty">Clear Qty</button>
             <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Google</button>
           </div>
         </div>
 
         <div class="filters">
           <div class="status-line" id="statusLine">Ready</div>
-          <p class="filter-label">Search product code / name (all brands)</p>
-          <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
-          <p class="note" id="searchHint">검색하거나 아래 브랜드를 선택하세요.</p>
-          <p class="filter-label">Or browse by brand</p>
-          <div class="chips" id="brandChips" role="tablist" aria-label="Brand"></div>
+          <p class="filter-label">Search / barcode</p>
+          <div class="search-row">
+            <input type="search" id="search" placeholder="Name, brand, or UPC" autocomplete="off" />
+            <button type="button" class="btn-secondary btn-sm btn-scan" id="btnScan">Scan</button>
+          </div>
+          <p class="note" id="searchHint">검색·브랜드 선택·카메라 스캔으로 상품을 고르세요.</p>
+          <p class="filter-label">Brand</p>
+          <select id="brandSelect" aria-label="Brand">
+            <option value="">Select brand…</option>
+          </select>
         </div>
 
         <div class="catalog" id="catalog">
           <div class="loading">최신정보로 업데이트 중입니다</div>
         </div>
       </section>
+    </div>
+  </div>
 
-      <aside class="panel panel-sticky">
-        <div class="panel-head"><h2>Order</h2></div>
-        <div class="panel-body">
-          <label class="field">Note (optional)
-            <textarea id="orderNote" rows="2" placeholder="Delivery / contact note"></textarea>
-          </label>
-          <div id="summary" class="summary empty">Your selected quantities will appear here.</div>
-          <div class="btns">
-            <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
-            <button type="button" class="btn-secondary" id="btnPrint">Print</button>
-          </div>
-          <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
-        </div>
-      </aside>
+  <button type="button" class="cart-fab" id="cartFab" aria-label="Open cart">
+    Cart
+    <span class="cart-badge" id="cartBadge" hidden>0</span>
+  </button>
+
+  <div class="sheet-backdrop" id="cartSheet" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-labelledby="cartTitle">
+      <div class="cart-sheet-head">
+        <h3 id="cartTitle">Cart</h3>
+        <button type="button" class="btn-secondary btn-sm" id="btnCloseCart">Close</button>
+      </div>
+      <div id="cartList" class="summary empty">Cart is empty.</div>
+      <label class="field">Note (optional)
+        <textarea id="orderNote" rows="2" placeholder="Delivery / contact note"></textarea>
+      </label>
+      <div class="btns">
+        <button type="button" class="btn-primary" id="btnSave">Save / Share</button>
+        <button type="button" class="btn-secondary" id="btnPrint">Print</button>
+        <button type="button" class="btn-secondary full" id="btnClearQty">Clear Cart</button>
+      </div>
+      <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
     </div>
   </div>
 
@@ -526,37 +813,95 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div id="cameraOverlay" aria-hidden="true">
+    <div class="camera-container">
+      <div class="camera-viewport">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="scanCanvas"></canvas>
+        <div class="scan-line" id="scanLine"></div>
+        <div class="scan-status scanning" id="scanStatus">카메라 초기화 중...</div>
+        <div class="scan-tap-overlay" id="scanTapOverlay">
+          <button type="button" class="scan-tap-btn" id="scanTapBtn">탭하여 스캔 시작</button>
+        </div>
+      </div>
+      <div class="camera-toolbar">
+        <button type="button" class="cam-tool-btn" id="flashBtn" title="플래시" disabled>🔦</button>
+        <button type="button" class="cam-tool-btn" id="galleryBtn" title="갤러리에서 스캔">🖼️</button>
+        <div class="zoom-toggle">
+          <button type="button" class="zoom-btn active" id="zoom1x">1x</button>
+          <button type="button" class="zoom-btn" id="zoom2x">2x</button>
+        </div>
+        <button type="button" class="cam-close-btn" id="btnCloseCamera">닫기</button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="galleryImageInput" accept="image/*" style="display: none;" />
+
   <script src="config.js"></script>
   <script>
     const CFG = window.APP_CONFIG || {};
     const DRAFT_KEY = "tester-order-google-draft-v2";
-    const CACHE_KEY = "tester-order-google-cache-v6";
+    const CACHE_KEY = "tester-order-google-cache-v7";
     /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
     /** How often the open app re-checks images-map.json (ms). */
     const IMAGE_REFRESH_MS = 60 * 1000;
     const RESULT_LIMIT = 120;
-    const BRAND_ORDER = ["COLORSILK", "ECOCO", "FANTASIA", "GILLETTE", "YARDLEY"];
     const UPDATE_MSG = "최신정보로 업데이트 중입니다";
 
     let products = []; // flat list with brand
     let brands = [];
+    /** @type {Map<string, object>} upc/barcode lookup → product */
+    let upcIndex = new Map();
     /** @type {Map<string, {id: string, name: string}>} */
     let imageIndex = new Map();
 
     const state = { brand: null, qtys: {} };
 
+    /* Camera scan state */
+    let codeReader = null;
+    let lastScannedCode = null;
+    let lastScanTime = 0;
+    const scanDebounceTime = 1000;
+    let isScanning = false;
+    let scanSessionActive = false;
+    let cameraVideoTrack = null;
+    let flashEnabled = false;
+    let currentZoom = 1;
+    let maxZoom = 1;
+    let barcodeDetector = null;
+    let isProcessingScan = false;
+    let detectionFrameId = null;
+    let lastDetectTime = 0;
+
     const els = {
       catalog: document.getElementById("catalog"),
-      brandChips: document.getElementById("brandChips"),
+      brandSelect: document.getElementById("brandSelect"),
       search: document.getElementById("search"),
-      summary: document.getElementById("summary"),
+      btnScan: document.getElementById("btnScan"),
+      cartList: document.getElementById("cartList"),
+      cartBadge: document.getElementById("cartBadge"),
+      cartFab: document.getElementById("cartFab"),
+      cartSheet: document.getElementById("cartSheet"),
       orderNote: document.getElementById("orderNote"),
       toast: document.getElementById("toast"),
       shareSheet: document.getElementById("shareSheet"),
       shareText: document.getElementById("shareText"),
       statusLine: document.getElementById("statusLine"),
-      btnReload: document.getElementById("btnReload")
+      btnReload: document.getElementById("btnReload"),
+      cameraOverlay: document.getElementById("cameraOverlay"),
+      cameraVideo: document.getElementById("cameraVideo"),
+      scanCanvas: document.getElementById("scanCanvas"),
+      scanLine: document.getElementById("scanLine"),
+      scanStatus: document.getElementById("scanStatus"),
+      scanTapOverlay: document.getElementById("scanTapOverlay"),
+      scanTapBtn: document.getElementById("scanTapBtn"),
+      flashBtn: document.getElementById("flashBtn"),
+      galleryBtn: document.getElementById("galleryBtn"),
+      galleryImageInput: document.getElementById("galleryImageInput"),
+      zoom1x: document.getElementById("zoom1x"),
+      zoom2x: document.getElementById("zoom2x"),
+      btnCloseCamera: document.getElementById("btnCloseCamera")
     };
 
     function toast(msg) {
@@ -616,7 +961,7 @@
       const full = String(itemName || "").trim();
       let m = full.match(/^COLORSILK\s*#?\s*(\d+[A-Z]*)\b/i);
       if (m) return m[1];
-      m = full.match(/^(COLORSILK|ECOCO|FANTASIA|YARDLEY|GIL(?:L)?)\s+(.+)$/i);
+      m = full.match(/^(\S+)\s+(.+)$/);
       if (m) {
         const rest = m[2].trim();
         const m2 = rest.match(/^#?\s*(\d+[A-Z]*)\s+/i);
@@ -626,33 +971,10 @@
       return full.slice(0, 28);
     }
 
-    function brandOf(name) {
-      const n = String(name || "").trim().toUpperCase();
-      if (n.startsWith("COLORSILK")) return "COLORSILK";
-      if (n.startsWith("ECOCO") || n === "ECO") return "ECOCO";
-      if (n.startsWith("FANTASIA")) return "FANTASIA";
-      if (n.startsWith("YARDLEY")) return "YARDLEY";
-      if (n.startsWith("GIL ") || n.startsWith("GILL") || n === "GILLETTE") return "GILLETTE";
-      return null;
-    }
-
-    /** Brand name shown for a sheet section header row (e.g. "ECO" -> "ECOCO"). */
-    function brandDisplayName(headerName) {
-      const mapped = brandOf(headerName);
-      if (mapped) return mapped;
-      return String(headerName || "").trim().toUpperCase().replace(/\s+/g, " ");
-    }
-
-    function isSectionHeaderRow(name, price, stock) {
-      const n = String(name || "").trim();
-      if (!n) return false;
-      const p = String(price ?? "").trim();
-      const s = String(stock ?? "").trim();
-      // Label row like: COLORSILK | PRICE | STOCK
-      if (p.toUpperCase() === "PRICE" || s.toUpperCase() === "STOCK") return true;
-      // Section divider row like: ECO | (empty) | (empty)
-      if (p === "" && s === "") return true;
-      return false;
+    /** Brand from product NAME: first word (sheet brand column wins when filled). */
+    function brandFromName(name) {
+      const first = String(name || "").trim().split(/\s+/)[0] || "";
+      return first.toUpperCase();
     }
 
     function brandClass(brand) {
@@ -829,7 +1151,7 @@
       const key = (CFG.GOOGLE_API_KEY || "").trim();
       if (!key) return null;
       const id = CFG.SHEET_ID;
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/A:C?key=${encodeURIComponent(key)}`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/A:E?key=${encodeURIComponent(key)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Sheets API ${res.status}`);
       const json = await res.json();
@@ -887,21 +1209,37 @@
       if (!rows.length) return [];
       const out = [];
       const seen = new Set();
-      let currentBrand = null;
 
-      for (const row of rows) {
-        const name = String(row[0] ?? "").trim();
+      let start = 0;
+      let nameIdx = 0;
+      let brandIdx = -1;
+      let priceIdx = 1;
+      let stockIdx = 2;
+      let upcIdx = -1;
+
+      const header = (rows[0] || []).map((c) => String(c ?? "").trim().toLowerCase());
+      if (header.includes("name") || header[0] === "name") {
+        nameIdx = Math.max(0, header.indexOf("name"));
+        brandIdx = header.indexOf("brand");
+        priceIdx = header.indexOf("price") >= 0 ? header.indexOf("price") : 2;
+        stockIdx = header.indexOf("stock") >= 0 ? header.indexOf("stock") : 3;
+        upcIdx = header.indexOf("upc");
+        start = 1;
+      }
+
+      for (let i = start; i < rows.length; i++) {
+        const row = rows[i] || [];
+        const name = String(row[nameIdx] ?? "").trim();
         if (!name) continue;
-        const priceRaw = row[1];
-        const stockRaw = row[2];
-        // A section header row switches the current brand and adds no item.
-        if (isSectionHeaderRow(name, priceRaw, stockRaw)) {
-          currentBrand = brandDisplayName(name);
-          continue;
-        }
-        // Prefer a recognized brand prefix, else the current sheet section,
-        // else the item's first word. This lets NEW brands work automatically.
-        const brand = brandOf(name) || currentBrand || name.split(/\s+/)[0].toUpperCase();
+
+        const sheetBrand = brandIdx >= 0 ? String(row[brandIdx] ?? "").trim() : "";
+        const brand = (sheetBrand || brandFromName(name)).toUpperCase();
+        if (!brand) continue;
+
+        const priceRaw = priceIdx >= 0 ? row[priceIdx] : "";
+        const stockRaw = stockIdx >= 0 ? row[stockIdx] : "";
+        const upc = upcIdx >= 0 ? String(row[upcIdx] ?? "").trim() : "";
+
         const dedupe = `${brand}::${name}`.toUpperCase();
         if (seen.has(dedupe)) continue;
         seen.add(dedupe);
@@ -911,19 +1249,74 @@
           code: extractCode(name),
           name,
           price: Number(priceRaw) || 0,
-          stock: Number(stockRaw) || 0
+          stock: Number(stockRaw) || 0,
+          upc
         });
       }
       return out;
     }
 
     function syncBrands() {
-      const present = new Set(products.map((p) => p.brand));
-      brands = BRAND_ORDER.filter((b) => present.has(b));
-      for (const b of present) {
-        if (!brands.includes(b)) brands.push(b);
-      }
+      brands = [...new Set(products.map((p) => p.brand).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
       if (state.brand && !brands.includes(state.brand)) state.brand = null;
+      rebuildUpcIndex();
+    }
+
+    function getBarcodeLookupKeys(barcode) {
+      const keys = new Set();
+      if (!barcode) return keys;
+      const raw = String(barcode).trim();
+      keys.add(raw);
+      const digitsOnly = raw.replace(/\D/g, "");
+      if (digitsOnly) {
+        keys.add(digitsOnly);
+        const withoutLeadingZeros = digitsOnly.replace(/^0+/, "");
+        if (withoutLeadingZeros) keys.add(withoutLeadingZeros);
+        [12, 13, 14].forEach((length) => {
+          if (digitsOnly.length < length) keys.add(digitsOnly.padStart(length, "0"));
+          if (withoutLeadingZeros && withoutLeadingZeros.length < length) {
+            keys.add(withoutLeadingZeros.padStart(length, "0"));
+          }
+        });
+      }
+      return keys;
+    }
+
+    function rebuildUpcIndex() {
+      upcIndex = new Map();
+      for (const p of products) {
+        if (!p.upc) continue;
+        for (const key of getBarcodeLookupKeys(p.upc)) {
+          if (key && !upcIndex.has(key)) upcIndex.set(key, p);
+        }
+      }
+    }
+
+    function findProductByBarcode(scanned) {
+      for (const key of getBarcodeLookupKeys(scanned)) {
+        if (upcIndex.has(key)) return upcIndex.get(key);
+      }
+      return null;
+    }
+
+    function applyScannedBarcode(code) {
+      const trimmed = String(code || "").trim().replace(/[\r\n\t]/g, "");
+      if (!trimmed) return;
+      const product = findProductByBarcode(trimmed);
+      if (!product) {
+        toast(`BARCODE NOT FOUND: ${trimmed}`);
+        els.search.value = trimmed;
+        state.brand = null;
+        refresh();
+        return;
+      }
+      const key = productKey(product);
+      state.qtys[key] = (Number(state.qtys[key]) || 0) + 1;
+      state.brand = null;
+      els.search.value = product.name;
+      refresh();
+      toast(`+1 · ${product.name}`);
     }
 
     /* ---------- Drive images ---------- */
@@ -1058,11 +1451,14 @@
       const name = p.name.toLowerCase();
       const code = String(p.code).toLowerCase();
       const brand = String(p.brand || "").toLowerCase();
+      const upc = String(p.upc || "").toLowerCase();
+      const qDigits = q.replace(/\D/g, "");
+      if (upc && (upc === q || (qDigits && upc.replace(/\D/g, "") === qDigits))) return 100;
       if (code === q) return 100;
       if (code.includes(q)) return 90;
       if (brand === q) return 85;
       if (name.startsWith(q)) return 80;
-      if (name.includes(q) || brand.includes(q)) return 60;
+      if (name.includes(q) || brand.includes(q) || (upc && upc.includes(q))) return 60;
       const words = q.split(/\s+/).filter((w) => w.length >= 2);
       if (words.length && words.every((w) => name.includes(w) || code.includes(w) || brand.includes(w))) {
         return 40;
@@ -1073,6 +1469,8 @@
     function searchProducts(query) {
       const q = query.trim();
       if (!q) return [];
+      const barcodeHit = findProductByBarcode(q);
+      if (barcodeHit) return [{ score: 100, ...barcodeHit }];
       const hits = [];
       for (const p of products) {
         const score = scoreProduct(p, q);
@@ -1083,10 +1481,15 @@
       return hits.slice(0, RESULT_LIMIT);
     }
 
-    function renderBrandChips() {
-      els.brandChips.innerHTML = brands.map((b) => `
-        <button type="button" class="chip ${state.brand === b ? "active" : ""}" data-brand="${escapeHtml(b)}">${escapeHtml(b)}</button>
-      `).join("");
+    function renderBrandSelect() {
+      const current = state.brand || "";
+      const options = [
+        `<option value="">Select brand… (${brands.length})</option>`,
+        ...brands.map((b) =>
+          `<option value="${escapeHtml(b)}" ${b === current ? "selected" : ""}>${escapeHtml(b)}</option>`
+        )
+      ];
+      els.brandSelect.innerHTML = options.join("");
     }
 
     function renderOptionRow(p) {
@@ -1163,7 +1566,7 @@
       }
 
       if (!state.brand) {
-        els.catalog.innerHTML = `<div class="empty-hint">Search for a product above, or select a brand.<br/>Catalog: ${products.length} items · Photos: ${imageIndex.size}</div>`;
+        els.catalog.innerHTML = `<div class="empty-hint">Search for a product above, or choose a brand from the dropdown.<br/>Catalog: ${products.length} items · Photos: ${imageIndex.size}</div>`;
         return;
       }
 
@@ -1178,32 +1581,76 @@
         if (!qty || qty <= 0) continue;
         const p = byKey.get(k);
         if (!p) continue;
-        items.push({ ...p, qty });
+        items.push({ ...p, qty, key: k });
       }
       return items;
     }
 
-    function updateSummary() {
+    function setCartQty(key, qty) {
+      const next = Math.max(0, Math.floor(Number(qty) || 0));
+      if (next > 0) state.qtys[key] = next;
+      else delete state.qtys[key];
+      refresh();
+    }
+
+    function adjustCartQty(key, delta) {
+      const cur = Number(state.qtys[key]) || 0;
+      setCartQty(key, cur + delta);
+    }
+
+    function removeCartItem(key) {
+      delete state.qtys[key];
+      refresh();
+    }
+
+    function updateCartBadge() {
+      const total = getItems().reduce((s, i) => s + i.qty, 0);
+      if (total > 0) {
+        els.cartBadge.hidden = false;
+        els.cartBadge.textContent = String(total);
+      } else {
+        els.cartBadge.hidden = true;
+        els.cartBadge.textContent = "0";
+      }
+    }
+
+    function updateCart() {
+      updateCartBadge();
       const items = getItems();
       if (!items.length) {
-        els.summary.className = "summary empty";
-        els.summary.textContent = "Your selected quantities will appear here.";
+        els.cartList.className = "summary empty";
+        els.cartList.textContent = "Cart is empty.";
         return;
       }
       const total = items.reduce((s, i) => s + i.qty, 0);
-      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
-      els.summary.className = "summary";
-      els.summary.innerHTML = `
-        <ul class="summary-list">
+      els.cartList.className = "summary";
+      els.cartList.innerHTML = `
+        <ul class="cart-list">
           ${items.map((i) => `
-            <li>
-              <span>${escapeHtml(i.name)}</span>
-              <span>${money(i.price)} · × ${i.qty}</span>
+            <li class="cart-item" data-key="${escapeHtml(i.key)}">
+              <div class="cart-item-name">${escapeHtml(i.name)}</div>
+              <div class="cart-item-controls">
+                <button type="button" class="cart-qty-btn" data-act="minus" aria-label="Decrease">−</button>
+                <span class="cart-qty-val">${i.qty}</span>
+                <button type="button" class="cart-qty-btn" data-act="plus" aria-label="Increase">+</button>
+              </div>
+              <button type="button" class="cart-del-btn" data-act="del" aria-label="Remove">×</button>
             </li>
           `).join("")}
         </ul>
-        <div class="total-row"><span>Total</span><span>${total} pcs · ${money(totalMoney)}</span></div>
+        <div class="total-row"><span>Total</span><span>${total} pcs</span></div>
       `;
+    }
+
+    function openCart() {
+      updateCart();
+      els.cartSheet.classList.add("open");
+      els.cartSheet.setAttribute("aria-hidden", "false");
+    }
+
+    function closeCart() {
+      els.cartSheet.classList.remove("open");
+      els.cartSheet.setAttribute("aria-hidden", "true");
     }
 
     function orderText() {
@@ -1216,12 +1663,11 @@
       const lines = ["[Product Order · Google]", ""];
       for (const [brand, list] of groups.entries()) {
         lines.push(brand);
-        list.forEach((i) => lines.push(`${i.name} ${money(i.price)} × ${i.qty}`));
+        list.forEach((i) => lines.push(`${i.name} - ${i.qty}`));
         lines.push("");
       }
       const totalQty = items.reduce((s, i) => s + i.qty, 0);
-      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
-      lines.push(`Total: ${totalQty} pcs · ${money(totalMoney)}`);
+      lines.push(`Total: ${totalQty} pcs`);
       const note = els.orderNote.value.trim();
       if (note) {
         lines.push("");
@@ -1326,9 +1772,9 @@
     }
 
     function refresh() {
-      renderBrandChips();
+      renderBrandSelect();
       renderCatalog();
-      updateSummary();
+      updateCart();
       saveDraft();
     }
 
@@ -1394,11 +1840,344 @@
       }
     }
 
-    els.brandChips.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-brand]");
-      if (!btn) return;
-      state.brand = btn.dataset.brand;
-      els.search.value = "";
+    /* ---------- Camera barcode scan ---------- */
+
+    function initBarcodeDetector() {
+      if (barcodeDetector || typeof BarcodeDetector === "undefined") return;
+      try {
+        barcodeDetector = new BarcodeDetector({
+          formats: [
+            "ean_13", "ean_8", "upc_a", "upc_e",
+            "code_128", "code_39", "code_93",
+            "itf", "codabar", "qr_code", "data_matrix"
+          ]
+        });
+      } catch {
+        barcodeDetector = null;
+      }
+    }
+
+    function getVideoDisplayMapping() {
+      const video = els.cameraVideo;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const rect = video.getBoundingClientRect();
+      const dw = rect.width;
+      const dh = rect.height;
+      if (!vw || !vh || !dw || !dh) return null;
+      const videoAspect = vw / vh;
+      const displayAspect = dw / dh;
+      let scale, offsetX, offsetY;
+      if (videoAspect > displayAspect) {
+        scale = dh / vh;
+        offsetX = (dw - vw * scale) / 2;
+        offsetY = 0;
+      } else {
+        scale = dw / vw;
+        offsetX = 0;
+        offsetY = (dh - vh * scale) / 2;
+      }
+      return { scale, offsetX, offsetY, dw, dh };
+    }
+
+    function clearScanCanvas() {
+      const canvas = els.scanCanvas;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function resizeScanCanvas() {
+      const video = els.cameraVideo;
+      const canvas = els.scanCanvas;
+      const rect = video.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+    }
+
+    function drawBoundingBox(points, color, lineWidth) {
+      if (!points || points.length < 2) return;
+      const mapping = getVideoDisplayMapping();
+      if (!mapping) return;
+      const canvas = els.scanCanvas;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      resizeScanCanvas();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (lineWidth || 3) * dpr;
+      ctx.lineJoin = "round";
+      const mapped = points.map((p) => ({
+        x: (p.x * mapping.scale + mapping.offsetX) * dpr,
+        y: (p.y * mapping.scale + mapping.offsetY) * dpr
+      }));
+      ctx.beginPath();
+      ctx.moveTo(mapped[0].x, mapped[0].y);
+      for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    function drawBoxFromResultPoints(resultPoints, color) {
+      if (!resultPoints || resultPoints.length < 2) return;
+      drawBoundingBox(resultPoints.map((p) => ({ x: p.getX(), y: p.getY() })), color);
+    }
+
+    function drawBoxFromBarcodeDetector(barcode) {
+      if (barcode.cornerPoints && barcode.cornerPoints.length >= 4) {
+        drawBoundingBox(barcode.cornerPoints, "#e53935", 3);
+      } else if (barcode.boundingBox) {
+        const b = barcode.boundingBox;
+        drawBoundingBox([
+          { x: b.x, y: b.y },
+          { x: b.x + b.width, y: b.y },
+          { x: b.x + b.width, y: b.y + b.height },
+          { x: b.x, y: b.y + b.height }
+        ], "#e53935", 3);
+      }
+    }
+
+    function setScanStatus(text, stateName) {
+      els.scanStatus.textContent = text;
+      els.scanStatus.className = "scan-status " + (stateName || "scanning");
+    }
+
+    function activateScanSession() {
+      scanSessionActive = true;
+      els.scanTapOverlay.classList.add("hidden");
+      els.scanLine.classList.add("active");
+      setScanStatus("바코드를 맞춰주세요", "scanning");
+      startDetectionLoop();
+    }
+
+    async function startDetectionLoop() {
+      if (!isScanning || !scanSessionActive) return;
+      const now = Date.now();
+      const video = els.cameraVideo;
+      if (barcodeDetector && video.readyState >= 2 && !isProcessingScan && (now - lastDetectTime) > 80) {
+        lastDetectTime = now;
+        try {
+          const barcodes = await barcodeDetector.detect(video);
+          if (barcodes.length > 0 && isScanning && scanSessionActive) {
+            drawBoxFromBarcodeDetector(barcodes[0]);
+            setScanStatus("스캔 중...", "detecting");
+          } else if (!isProcessingScan) {
+            clearScanCanvas();
+            setScanStatus("바코드를 맞춰주세요", "scanning");
+          }
+        } catch { /* skip frame */ }
+      }
+      detectionFrameId = requestAnimationFrame(startDetectionLoop);
+    }
+
+    function stopDetectionLoop() {
+      if (detectionFrameId) {
+        cancelAnimationFrame(detectionFrameId);
+        detectionFrameId = null;
+      }
+    }
+
+    function isValidBarcode(text) {
+      const trimmed = text ? text.trim() : "";
+      return trimmed.length >= 3 && /^[A-Za-z0-9\-_]+$/.test(trimmed);
+    }
+
+    function handleScanSuccess(trimmedText, result) {
+      if (isProcessingScan) return;
+      const now = Date.now();
+      if (trimmedText === lastScannedCode && (now - lastScanTime) < scanDebounceTime) return;
+      if (!isValidBarcode(trimmedText)) return;
+
+      isProcessingScan = true;
+      lastScannedCode = trimmedText;
+      lastScanTime = now;
+
+      if (result && result.getResultPoints) {
+        drawBoxFromResultPoints(result.getResultPoints(), "#4CAF50");
+      }
+      setScanStatus("✓ 스캔 성공!", "success");
+      els.scanLine.classList.remove("active");
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+      setTimeout(() => {
+        stopCameraScan();
+        applyScannedBarcode(trimmedText);
+        isProcessingScan = false;
+      }, 400);
+    }
+
+    async function setupCameraTrack(videoElement) {
+      const stream = videoElement.srcObject;
+      if (!stream) return;
+      cameraVideoTrack = stream.getVideoTracks()[0];
+      if (!cameraVideoTrack) return;
+      const capabilities = cameraVideoTrack.getCapabilities ? cameraVideoTrack.getCapabilities() : {};
+      els.flashBtn.disabled = !capabilities.torch;
+      flashEnabled = false;
+      els.flashBtn.classList.remove("active");
+      if (capabilities.zoom) {
+        maxZoom = Math.min(capabilities.zoom.max || 2, 4);
+        currentZoom = capabilities.zoom.min || 1;
+      } else {
+        maxZoom = 1;
+      }
+      els.zoom2x.disabled = maxZoom < 1.5;
+    }
+
+    async function toggleFlash() {
+      if (!cameraVideoTrack) return;
+      flashEnabled = !flashEnabled;
+      try {
+        await cameraVideoTrack.applyConstraints({ advanced: [{ torch: flashEnabled }] });
+        els.flashBtn.classList.toggle("active", flashEnabled);
+      } catch {
+        flashEnabled = !flashEnabled;
+      }
+    }
+
+    async function setCameraZoom(level) {
+      if (!cameraVideoTrack) return;
+      const capabilities = cameraVideoTrack.getCapabilities ? cameraVideoTrack.getCapabilities() : {};
+      if (!capabilities.zoom) return;
+      const targetZoom = level === 2 ? Math.min(maxZoom, 2) : (capabilities.zoom.min || 1);
+      try {
+        await cameraVideoTrack.applyConstraints({ advanced: [{ zoom: targetZoom }] });
+        currentZoom = targetZoom;
+        els.zoom1x.classList.toggle("active", level === 1);
+        els.zoom2x.classList.toggle("active", level === 2);
+      } catch { /* zoom unsupported */ }
+    }
+
+    async function scanFromGallery(file) {
+      if (!file || !codeReader) return;
+      setScanStatus("이미지 분석 중...", "detecting");
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = async () => {
+        try {
+          const result = await codeReader.decodeFromImageElement(img);
+          const text = result.getText ? result.getText() : result.text;
+          URL.revokeObjectURL(url);
+          if (isValidBarcode(text)) {
+            handleScanSuccess(text.trim(), result);
+          } else {
+            setScanStatus("바코드를 찾을 수 없습니다", "scanning");
+            setTimeout(() => {
+              if (isScanning) setScanStatus("바코드를 맞춰주세요", "scanning");
+            }, 2000);
+          }
+        } catch {
+          URL.revokeObjectURL(url);
+          setScanStatus("바코드를 찾을 수 없습니다", "scanning");
+          setTimeout(() => {
+            if (isScanning) setScanStatus("바코드를 맞춰주세요", "scanning");
+          }, 2000);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setScanStatus("이미지를 불러올 수 없습니다", "scanning");
+      };
+      img.src = url;
+    }
+
+    async function startCameraScan() {
+      if (isScanning) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        toast("이 기기에서는 카메라를 지원하지 않습니다.");
+        return;
+      }
+      if (typeof ZXing === "undefined") {
+        toast("바코드 스캔 라이브러리를 불러오지 못했습니다.");
+        return;
+      }
+
+      initBarcodeDetector();
+      els.cameraOverlay.style.display = "flex";
+      els.cameraOverlay.setAttribute("aria-hidden", "false");
+      isScanning = true;
+      scanSessionActive = false;
+      isProcessingScan = false;
+      clearScanCanvas();
+      els.scanTapOverlay.classList.remove("hidden");
+      els.scanLine.classList.remove("active");
+      setScanStatus("카메라 초기화 중...", "scanning");
+
+      try {
+        if (!codeReader) codeReader = new ZXing.BrowserMultiFormatReader();
+        else codeReader.reset();
+
+        const devices = await codeReader.listVideoInputDevices();
+        if (!devices || !devices.length) {
+          toast("사용 가능한 카메라를 찾을 수 없습니다.");
+          stopCameraScan();
+          return;
+        }
+
+        const backCamera = devices.find((d) => /back|rear|후면|environment/i.test(d.label))
+          || devices[devices.length - 1];
+        const constraints = {
+          video: {
+            deviceId: { exact: backCamera.deviceId },
+            facingMode: "environment",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: { ideal: "continuous" }
+          }
+        };
+
+        const scanCallback = (result) => {
+          if (!scanSessionActive || isProcessingScan) return;
+          if (!result) return;
+          const text = result.getText ? result.getText() : result.text;
+          if (result.getResultPoints) {
+            drawBoxFromResultPoints(result.getResultPoints(), "#e53935");
+            setScanStatus("스캔 중...", "detecting");
+          }
+          handleScanSuccess(text ? text.trim() : "", result);
+        };
+
+        await codeReader.decodeFromConstraints(constraints, els.cameraVideo, scanCallback);
+
+        const onVideoReady = () => {
+          resizeScanCanvas();
+          setupCameraTrack(els.cameraVideo);
+        };
+        if (els.cameraVideo.readyState >= 1) onVideoReady();
+        else els.cameraVideo.addEventListener("loadedmetadata", onVideoReady, { once: true });
+
+        setScanStatus("탭하여 스캔 시작", "scanning");
+      } catch (error) {
+        console.error("카메라 스캔 오류:", error);
+        toast("카메라 시작 실패: " + (error.message || "error"));
+        stopCameraScan();
+      }
+    }
+
+    function stopCameraScan() {
+      stopDetectionLoop();
+      els.cameraOverlay.style.display = "none";
+      els.cameraOverlay.setAttribute("aria-hidden", "true");
+      isScanning = false;
+      scanSessionActive = false;
+      isProcessingScan = false;
+      lastScannedCode = null;
+      lastScanTime = 0;
+      flashEnabled = false;
+      cameraVideoTrack = null;
+      clearScanCanvas();
+      els.scanTapOverlay.classList.remove("hidden");
+      els.scanLine.classList.remove("active");
+      els.flashBtn.classList.remove("active");
+      els.zoom1x.classList.add("active");
+      els.zoom2x.classList.remove("active");
+      if (codeReader) {
+        try { codeReader.reset(); } catch (e) { console.error(e); }
+      }
+    }
+
+    els.brandSelect.addEventListener("change", () => {
+      state.brand = els.brandSelect.value || null;
+      if (state.brand) els.search.value = "";
       refresh();
     });
 
@@ -1410,7 +2189,7 @@
       const k = e.target.dataset.key;
       if (qty > 0) state.qtys[k] = qty;
       else delete state.qtys[k];
-      updateSummary();
+      updateCart();
       saveDraft();
     });
 
@@ -1419,19 +2198,67 @@
       refresh();
     });
 
+    els.search.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const q = els.search.value.trim();
+      if (!q) return;
+      const hit = findProductByBarcode(q);
+      if (hit) {
+        e.preventDefault();
+        applyScannedBarcode(q);
+      }
+    });
+
+    els.btnScan.addEventListener("click", () => startCameraScan());
+    els.btnCloseCamera.addEventListener("click", () => stopCameraScan());
+    els.scanTapBtn.addEventListener("click", activateScanSession);
+    els.scanTapOverlay.addEventListener("click", (e) => {
+      if (e.target === els.scanTapOverlay) activateScanSession();
+    });
+    els.flashBtn.addEventListener("click", toggleFlash);
+    els.galleryBtn.addEventListener("click", () => els.galleryImageInput.click());
+    els.galleryImageInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        scanFromGallery(this.files[0]);
+        this.value = "";
+      }
+    });
+    els.zoom1x.addEventListener("click", () => setCameraZoom(1));
+    els.zoom2x.addEventListener("click", () => setCameraZoom(2));
+    window.addEventListener("resize", () => {
+      if (isScanning) resizeScanCanvas();
+    });
+
+    els.cartFab.addEventListener("click", openCart);
+    document.getElementById("btnCloseCart").addEventListener("click", closeCart);
+    els.cartSheet.addEventListener("click", (e) => {
+      if (e.target === els.cartSheet) closeCart();
+    });
+    els.cartList.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      const row = btn.closest("[data-key]");
+      if (!row) return;
+      const key = row.dataset.key;
+      const act = btn.dataset.act;
+      if (act === "plus") adjustCartQty(key, 1);
+      else if (act === "minus") adjustCartQty(key, -1);
+      else if (act === "del") removeCartItem(key);
+    });
+
     els.orderNote.addEventListener("input", saveDraft);
 
     document.getElementById("btnClearQty").addEventListener("click", () => {
       state.qtys = {};
       refresh();
-      toast("Quantities cleared.");
+      toast("Cart cleared.");
     });
 
     els.btnReload.addEventListener("click", () => loadFromGoogle(true));
 
     document.getElementById("btnSave").addEventListener("click", async () => {
       const items = getItems();
-      if (!items.length) return toast("Enter at least one quantity.");
+      if (!items.length) return toast("Cart is empty.");
       const text = orderText();
       const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
       if (isMobile && navigator.share) {

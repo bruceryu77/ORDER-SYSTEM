@@ -1,7 +1,7 @@
 /** Google Sheet + Drive settings */
 window.APP_CONFIG = {
-  /** Tester order sheet (COLORSILK / ECOCO / FANTASIA / GILLETTE / YARDLEY) */
-  SHEET_ID: "1yFxGDo25r-efhMZEUvM6ZHKKXr1dBX0tQC7Y_TuV2DY",
+  /** Product catalog sheet (name, brand, price, stock, upc) */
+  SHEET_ID: "1RfEBT-b1ErKbqtNXVlDsfWha-pEE7_OO9Wmp2kiyKhU",
   /** First sheet tab. Change if your data is on another tab. */
   SHEET_GID: "0",
   DRIVE_FOLDER_ID: "1u3iqOZgoGRe7foBPUNiGnsAPeFxaIZuA",
