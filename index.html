@@ -96,6 +96,48 @@
     }
     .status-line .ok { color: var(--accent); font-weight: 600; }
     .status-line .err { color: var(--warn); font-weight: 600; }
+    .status-line .update-msg {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent);
+      font-weight: 600;
+      animation: updatePulse 1.4s ease-in-out infinite;
+    }
+    .status-line .update-msg .update-spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex-shrink: 0;
+    }
+    .update-dots {
+      display: inline-flex;
+      gap: 3px;
+      margin-left: 2px;
+      vertical-align: middle;
+    }
+    .update-dots i {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.25;
+      animation: updateDotBounce 1.2s ease-in-out infinite;
+    }
+    .update-dots i:nth-child(2) { animation-delay: 0.15s; }
+    .update-dots i:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes updateDotBounce {
+      0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    @keyframes updatePulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
 
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
@@ -172,17 +214,33 @@
       padding: 36px 12px;
       line-height: 1.5;
     }
-    .loading::after {
-      content: "";
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      margin-left: 8px;
-      border: 2px solid var(--line);
-      border-top-color: var(--accent);
+    .loading {
+      display: grid;
+      justify-items: center;
+      gap: 14px;
+      animation: loadingFadeIn 0.35s ease;
+    }
+    .loading-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      color: var(--accent);
+      animation: updatePulse 1.4s ease-in-out infinite;
+    }
+    .loading-orbit {
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
-      vertical-align: -2px;
-      animation: spin 0.8s linear infinite;
+      border: 3px solid color-mix(in srgb, var(--accent) 18%, transparent);
+      border-top-color: var(--accent);
+      border-right-color: color-mix(in srgb, var(--accent) 55%, transparent);
+      animation: spin 0.85s linear infinite;
+    }
+    .loading::after { display: none; }
+    @keyframes loadingFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -767,7 +825,10 @@
         </div>
 
         <div class="catalog" id="catalog">
-          <div class="loading">최신정보로 업데이트 중입니다</div>
+          <div class="loading">
+            <div class="loading-orbit" aria-hidden="true"></div>
+            <div class="loading-text">최신정보로 업데이트 중입니다<span class="update-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+          </div>
         </div>
       </section>
     </div>
@@ -848,6 +909,21 @@
     const IMAGE_REFRESH_MS = 60 * 1000;
     const RESULT_LIMIT = 120;
     const UPDATE_MSG = "최신정보로 업데이트 중입니다";
+
+    function updateDotsHtml() {
+      return `<span class="update-dots" aria-hidden="true"><i></i><i></i><i></i></span>`;
+    }
+
+    function updateStatusHtml() {
+      return `<span class="update-msg"><span class="update-spinner" aria-hidden="true"></span>${UPDATE_MSG}${updateDotsHtml()}</span>`;
+    }
+
+    function updateLoadingHtml() {
+      return `<div class="loading">
+        <div class="loading-orbit" aria-hidden="true"></div>
+        <div class="loading-text">${UPDATE_MSG}${updateDotsHtml()}</div>
+      </div>`;
+    }
 
     let products = []; // flat list with brand
     let brands = [];
@@ -1913,10 +1989,10 @@
           refreshImagesOnly();
           return;
         }
-        setStatus(`<span class="ok">${UPDATE_MSG}</span>`);
+        setStatus(updateStatusHtml());
       } else {
-        els.catalog.innerHTML = `<div class="loading">${UPDATE_MSG}</div>`;
-        setStatus(UPDATE_MSG);
+        els.catalog.innerHTML = updateLoadingHtml();
+        setStatus(updateStatusHtml());
       }
 
       try {
