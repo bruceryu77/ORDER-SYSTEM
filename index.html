@@ -1623,11 +1623,6 @@
       toast(`+${qty} · ${name}`);
     }
 
-    function findProductByKey(key) {
-      const want = String(key || "").toUpperCase();
-      return products.find((p) => productKey(p) === want) || null;
-    }
-
     /* ---------- Drive images ---------- */
 
     async function fetchDriveWithApiKey() {
