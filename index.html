@@ -764,6 +764,7 @@
     .sheet-backdrop.open { display: grid; }
     #shareSheet { z-index: 32; }
     #productSheet { z-index: 33; }
+    #googleSheet { z-index: 34; }
 
     .product-sheet-body {
       display: grid;
@@ -808,6 +809,48 @@
       text-transform: uppercase;
       color: var(--muted);
     }
+    .google-sheet.sheet {
+      width: min(720px, 100%);
+      max-height: min(92vh, 860px);
+      grid-template-rows: auto auto 1fr auto;
+      overflow: hidden;
+    }
+    .google-sheet-query {
+      margin: 0;
+      font-size: 0.84rem;
+      color: var(--muted);
+      word-break: break-all;
+    }
+    .google-frame-wrap {
+      position: relative;
+      min-height: min(58vh, 520px);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .google-frame {
+      width: 100%;
+      height: min(58vh, 520px);
+      border: 0;
+      display: block;
+      background: #fff;
+    }
+    .google-frame-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 10px;
+      padding: 20px;
+      text-align: center;
+      background: #fffdf9;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .google-frame-fallback[hidden] { display: none; }
     .item-clickable {
       cursor: pointer;
     }
@@ -870,7 +913,7 @@
             <input type="search" id="search" placeholder="Name, brand, or UPC" autocomplete="off" />
             <button type="button" class="btn-secondary btn-sm btn-scan" id="btnScan">Scan</button>
           </div>
-          <p class="note" id="searchHint">스캔·아이템 클릭 후 수량을 입력해 Cart에 담으세요.</p>
+          <p class="note" id="searchHint">스캔 후 수량 입력 · 아이템 클릭 시 Google 검색 결과 표시</p>
           <p class="filter-label">Brand</p>
           <select id="brandSelect" aria-label="Brand">
             <option value="">Select brand…</option>
@@ -908,6 +951,28 @@
         <button type="button" class="btn-secondary full" id="btnClearQty">Clear Cart</button>
       </div>
       <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="googleSheet" aria-hidden="true">
+    <div class="sheet google-sheet" role="dialog" aria-labelledby="googleSheetTitle">
+      <div class="cart-sheet-head">
+        <h3 id="googleSheetTitle">Google</h3>
+        <button type="button" class="btn-secondary btn-sm" id="btnCloseGoogle">Close</button>
+      </div>
+      <p class="google-sheet-query" id="googleSheetQuery"></p>
+      <div class="google-frame-wrap">
+        <iframe class="google-frame" id="googleFrame" title="Google search results" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <div class="google-frame-fallback" id="googleFrameFallback">
+          <div>Google 검색 결과를 작은 창으로 엽니다.</div>
+          <button type="button" class="btn-primary" id="btnOpenGooglePopup">Open Google</button>
+        </div>
+      </div>
+      <div class="btns">
+        <button type="button" class="btn-secondary" id="btnGoogleWeb">Web</button>
+        <button type="button" class="btn-secondary" id="btnGoogleImages">Images</button>
+        <button type="button" class="btn-primary full" id="btnOpenGooglePopup2">Open Google window</button>
+      </div>
     </div>
   </div>
 
@@ -1006,6 +1071,8 @@
     const state = { brand: null, qtys: {} };
     /** @type {object|null} product open in the detail sheet */
     let pendingProduct = null;
+    /** Current Google lookup query / mode for item click */
+    let googleLookup = { query: "", mode: "web", url: "", popup: null };
 
     /* Camera scan state */
     let codeReader = null;
@@ -1035,6 +1102,10 @@
       productSheet: document.getElementById("productSheet"),
       productSheetBody: document.getElementById("productSheetBody"),
       productQty: document.getElementById("productQty"),
+      googleSheet: document.getElementById("googleSheet"),
+      googleSheetQuery: document.getElementById("googleSheetQuery"),
+      googleFrame: document.getElementById("googleFrame"),
+      googleFrameFallback: document.getElementById("googleFrameFallback"),
       orderNote: document.getElementById("orderNote"),
       toast: document.getElementById("toast"),
       shareSheet: document.getElementById("shareSheet"),
@@ -1634,6 +1705,88 @@
     function findProductByKey(key) {
       const want = String(key || "").toUpperCase();
       return products.find((p) => productKey(p) === want) || null;
+    }
+
+    function googleSearchUrl(query, mode) {
+      const q = encodeURIComponent(String(query || "").trim());
+      if (mode === "images") {
+        return `https://www.google.com/search?tbm=isch&q=${q}&hl=en`;
+      }
+      // igu=1 helps some browsers embed Google search.
+      return `https://www.google.com/search?q=${q}&hl=en&igu=1`;
+    }
+
+    function openGooglePopup(url) {
+      const w = Math.min(480, Math.floor(window.screen.availWidth * 0.92) || 420);
+      const h = Math.min(780, Math.floor(window.screen.availHeight * 0.9) || 700);
+      const left = Math.max(0, Math.floor((window.screen.availWidth - w) / 2));
+      const top = Math.max(0, Math.floor((window.screen.availHeight - h) / 2));
+      const features = `popup=yes,width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`;
+      try {
+        const popup = window.open(url, "orderGoogleLookup", features);
+        if (popup) {
+          googleLookup.popup = popup;
+          try { popup.focus(); } catch { /* ignore */ }
+          return popup;
+        }
+      } catch { /* ignore */ }
+      return null;
+    }
+
+    function loadGoogleFrame(url) {
+      googleLookup.url = url;
+      els.googleFrameFallback.hidden = false;
+      els.googleFrame.removeAttribute("src");
+      // Try embed; Google often blocks iframe — fallback UI stays visible underneath/on top.
+      els.googleFrame.onload = () => {
+        // If Google blocks, onload may still fire with empty/error page; keep fallback available.
+        try {
+          const href = els.googleFrame.contentWindow && els.googleFrame.contentWindow.location.href;
+          if (href && href !== "about:blank") {
+            els.googleFrameFallback.hidden = true;
+          }
+        } catch {
+          // Cross-origin = frame likely loaded something; still often blocked UI.
+          els.googleFrameFallback.hidden = false;
+        }
+      };
+      els.googleFrame.src = url;
+    }
+
+    function openGoogleLookupSheet(product) {
+      if (!product) return;
+      const query = String(product.upc || product.name || "").trim();
+      if (!query) {
+        toast("No UPC or name to search on Google.");
+        return;
+      }
+      googleLookup.query = query;
+      googleLookup.mode = "web";
+      const url = googleSearchUrl(query, "web");
+      els.googleSheetQuery.textContent = `${product.name} · UPC ${product.upc || "-"} · Google: ${query}`;
+      document.getElementById("googleSheetTitle").textContent = "Google";
+      els.googleSheet.classList.add("open");
+      els.googleSheet.setAttribute("aria-hidden", "false");
+      loadGoogleFrame(url);
+      // Prefer a real small Google window — iframe is often blocked by Google.
+      const popup = openGooglePopup(url);
+      if (!popup) {
+        els.googleFrameFallback.hidden = false;
+      }
+    }
+
+    function closeGoogleLookupSheet() {
+      els.googleSheet.classList.remove("open");
+      els.googleSheet.setAttribute("aria-hidden", "true");
+      els.googleFrame.src = "about:blank";
+    }
+
+    function setGoogleLookupMode(mode) {
+      if (!googleLookup.query) return;
+      googleLookup.mode = mode === "images" ? "images" : "web";
+      const url = googleSearchUrl(googleLookup.query, googleLookup.mode);
+      loadGoogleFrame(url);
+      openGooglePopup(url);
     }
 
     /* ---------- Drive images ---------- */
@@ -2520,7 +2673,7 @@
       if (!row) return;
       const product = findProductByKey(row.dataset.openKey);
       if (!product) return;
-      openProductSheet(product);
+      openGoogleLookupSheet(product);
     });
 
     els.catalog.addEventListener("keydown", (e) => {
@@ -2529,7 +2682,7 @@
       if (!row) return;
       e.preventDefault();
       const product = findProductByKey(row.dataset.openKey);
-      if (product) openProductSheet(product);
+      if (product) openGoogleLookupSheet(product);
     });
 
     els.search.addEventListener("input", () => {
@@ -2596,6 +2749,19 @@
         e.preventDefault();
         addPendingProductToCart();
       }
+    });
+
+    document.getElementById("btnCloseGoogle").addEventListener("click", closeGoogleLookupSheet);
+    els.googleSheet.addEventListener("click", (e) => {
+      if (e.target === els.googleSheet) closeGoogleLookupSheet();
+    });
+    document.getElementById("btnGoogleWeb").addEventListener("click", () => setGoogleLookupMode("web"));
+    document.getElementById("btnGoogleImages").addEventListener("click", () => setGoogleLookupMode("images"));
+    document.getElementById("btnOpenGooglePopup").addEventListener("click", () => {
+      if (googleLookup.url) openGooglePopup(googleLookup.url);
+    });
+    document.getElementById("btnOpenGooglePopup2").addEventListener("click", () => {
+      if (googleLookup.url) openGooglePopup(googleLookup.url);
     });
 
     els.orderNote.addEventListener("input", saveDraft);
