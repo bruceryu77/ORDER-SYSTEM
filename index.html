@@ -763,6 +763,59 @@
     }
     .sheet-backdrop.open { display: grid; }
     #shareSheet { z-index: 32; }
+    #productSheet { z-index: 33; }
+
+    .product-sheet-body {
+      display: grid;
+      gap: 12px;
+    }
+    .product-sheet-main {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .product-sheet-thumb {
+      width: 72px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f0ece4;
+      flex-shrink: 0;
+    }
+    .product-sheet-thumb[hidden] { display: none; }
+    .product-sheet-info { min-width: 0; flex: 1; display: grid; gap: 6px; }
+    .product-sheet-name {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .product-sheet-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+    .product-sheet-qty {
+      display: grid;
+      gap: 6px;
+    }
+    .product-sheet-qty label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .item-clickable {
+      cursor: pointer;
+    }
+    .item-clickable:hover .name {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .sheet {
       width: min(560px, 100%);
       background: #fffdf9;
@@ -817,7 +870,7 @@
             <input type="search" id="search" placeholder="Name, brand, or UPC" autocomplete="off" />
             <button type="button" class="btn-secondary btn-sm btn-scan" id="btnScan">Scan</button>
           </div>
-          <p class="note" id="searchHint">검색·브랜드 선택·카메라 스캔으로 상품을 고르세요.</p>
+          <p class="note" id="searchHint">스캔·아이템 클릭 후 수량을 입력해 Cart에 담으세요.</p>
           <p class="filter-label">Brand</p>
           <select id="brandSelect" aria-label="Brand">
             <option value="">Select brand…</option>
@@ -855,6 +908,24 @@
         <button type="button" class="btn-secondary full" id="btnClearQty">Clear Cart</button>
       </div>
       <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="productSheet" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-labelledby="productSheetTitle">
+      <div class="cart-sheet-head">
+        <h3 id="productSheetTitle">Product</h3>
+        <button type="button" class="btn-secondary btn-sm" id="btnCloseProduct">Close</button>
+      </div>
+      <div class="product-sheet-body" id="productSheetBody"></div>
+      <div class="product-sheet-qty">
+        <label for="productQty">Order Qty</label>
+        <input type="number" id="productQty" min="1" step="1" inputmode="numeric" placeholder="Enter quantity" />
+      </div>
+      <div class="btns">
+        <button type="button" class="btn-primary" id="btnAddProduct">Add to Cart</button>
+        <button type="button" class="btn-secondary" id="btnCloseProduct2">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -933,6 +1004,8 @@
     let imageIndex = new Map();
 
     const state = { brand: null, qtys: {} };
+    /** @type {object|null} product open in the detail sheet */
+    let pendingProduct = null;
 
     /* Camera scan state */
     let codeReader = null;
@@ -959,6 +1032,9 @@
       cartBadge: document.getElementById("cartBadge"),
       cartFab: document.getElementById("cartFab"),
       cartSheet: document.getElementById("cartSheet"),
+      productSheet: document.getElementById("productSheet"),
+      productSheetBody: document.getElementById("productSheetBody"),
+      productQty: document.getElementById("productQty"),
       orderNote: document.getElementById("orderNote"),
       toast: document.getElementById("toast"),
       shareSheet: document.getElementById("shareSheet"),
@@ -1493,12 +1569,71 @@
         refresh();
         return;
       }
+      openProductSheet(product, { fromScan: true, scannedCode: trimmed });
+    }
+
+    function openProductSheet(product, opts) {
+      if (!product) return;
+      pendingProduct = product;
       const key = productKey(product);
-      state.qtys[key] = (Number(state.qtys[key]) || 0) + 1;
+      const inCart = Number(state.qtys[key]) || 0;
+      const img = resolveImage(product);
+      const scanned = opts && opts.scannedCode ? opts.scannedCode : "";
+      els.productSheetBody.innerHTML = `
+        <div class="product-sheet-main">
+          ${img
+            ? `<img class="product-sheet-thumb" src="${escapeHtml(img.src)}" alt=""
+                referrerpolicy="no-referrer"
+                data-drive-id="${escapeHtml(img.id)}" data-attempt="0"
+                onerror="onThumbError(this)" />`
+            : `<span class="product-sheet-thumb" hidden></span>`}
+          <div class="product-sheet-info">
+            <p class="product-sheet-name">${escapeHtml(product.name)}</p>
+            <p class="product-sheet-meta">
+              Brand: ${escapeHtml(product.brand || "-")}<br/>
+              UPC: ${escapeHtml(product.upc || scanned || "-")}<br/>
+              Price: ${money(product.price)} · Stock: ${product.stock <= 0 ? "0 (Out)" : product.stock}
+              ${inCart ? `<br/>In cart: ${inCart}` : ""}
+            </p>
+          </div>
+        </div>
+      `;
+      els.productQty.value = "";
+      els.productSheet.classList.add("open");
+      els.productSheet.setAttribute("aria-hidden", "false");
+      setTimeout(() => {
+        try { els.productQty.focus(); } catch { /* ignore */ }
+      }, 80);
+    }
+
+    function closeProductSheet() {
+      els.productSheet.classList.remove("open");
+      els.productSheet.setAttribute("aria-hidden", "true");
+      pendingProduct = null;
+      els.productQty.value = "";
+    }
+
+    function addPendingProductToCart() {
+      if (!pendingProduct) return;
+      const qty = Math.floor(Number(els.productQty.value) || 0);
+      if (qty <= 0) {
+        toast("Enter quantity first.");
+        els.productQty.focus();
+        return;
+      }
+      const key = productKey(pendingProduct);
+      state.qtys[key] = (Number(state.qtys[key]) || 0) + qty;
+      const name = pendingProduct.name;
+      closeProductSheet();
       state.brand = null;
-      els.search.value = product.name;
+      els.search.value = "";
       refresh();
-      toast(`+1 · ${product.name}`);
+      toast(`+${qty} · ${name}`);
+    }
+
+    function findProductByKey(key) {
+      const want = String(key || "").toUpperCase();
+      return products.find((p) => productKey(p) === want) || null;
     }
 
     /* ---------- Drive images ---------- */
@@ -1681,7 +1816,7 @@
       return `
         <tr>
           <td class="item-column">
-            <div class="item-cell">
+            <div class="item-cell item-clickable" data-open-key="${escapeHtml(productKey(p))}" role="button" tabindex="0">
               ${img ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy"
                 referrerpolicy="no-referrer"
                 data-drive-id="${escapeHtml(img.id)}" data-attempt="0"
@@ -2371,12 +2506,30 @@
       if (!e.target.classList.contains("qty")) return;
       let qty = Number(e.target.value) || 0;
       if (qty < 0) qty = 0;
-      e.target.value = qty;
+      e.target.value = qty > 0 ? qty : "";
       const k = e.target.dataset.key;
       if (qty > 0) state.qtys[k] = qty;
       else delete state.qtys[k];
       updateCart();
       saveDraft();
+    });
+
+    els.catalog.addEventListener("click", (e) => {
+      if (e.target.closest(".qty") || e.target.closest("input")) return;
+      const row = e.target.closest("[data-open-key]");
+      if (!row) return;
+      const product = findProductByKey(row.dataset.openKey);
+      if (!product) return;
+      openProductSheet(product);
+    });
+
+    els.catalog.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const row = e.target.closest("[data-open-key]");
+      if (!row) return;
+      e.preventDefault();
+      const product = findProductByKey(row.dataset.openKey);
+      if (product) openProductSheet(product);
     });
 
     els.search.addEventListener("input", () => {
@@ -2391,7 +2544,7 @@
       const hit = findProductByBarcode(q);
       if (hit) {
         e.preventDefault();
-        applyScannedBarcode(q);
+        openProductSheet(hit, { fromScan: true, scannedCode: q });
       }
     });
 
@@ -2430,6 +2583,19 @@
       if (act === "plus") adjustCartQty(key, 1);
       else if (act === "minus") adjustCartQty(key, -1);
       else if (act === "del") removeCartItem(key);
+    });
+
+    document.getElementById("btnCloseProduct").addEventListener("click", closeProductSheet);
+    document.getElementById("btnCloseProduct2").addEventListener("click", closeProductSheet);
+    els.productSheet.addEventListener("click", (e) => {
+      if (e.target === els.productSheet) closeProductSheet();
+    });
+    document.getElementById("btnAddProduct").addEventListener("click", addPendingProductToCart);
+    els.productQty.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addPendingProductToCart();
+      }
     });
 
     els.orderNote.addEventListener("input", saveDraft);
