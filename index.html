@@ -725,13 +725,6 @@
       font-weight: 800;
     }
     .cart-badge[hidden] { display: none; }
-    .cart-sheet-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .cart-sheet-head h3 { margin: 0; font-size: 1.05rem; }
 
     .toast {
       position: fixed;
@@ -760,6 +753,13 @@
       place-items: end center;
       z-index: 30;
       padding: 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
     .sheet-backdrop.open { display: grid; }
     #shareSheet { z-index: 32; }
@@ -768,11 +768,13 @@
     .product-sheet-body {
       display: grid;
       gap: 12px;
+      min-width: 0;
     }
     .product-sheet-main {
       display: flex;
       gap: 12px;
       align-items: flex-start;
+      min-width: 0;
     }
     .product-sheet-thumb {
       width: 72px;
@@ -790,35 +792,44 @@
       font-weight: 700;
       line-height: 1.35;
       word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .product-sheet-meta {
       margin: 0;
       color: var(--muted);
       font-size: 0.84rem;
       line-height: 1.4;
+      word-break: break-word;
     }
     .product-sheet-qty {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      min-width: 0;
+      width: 100%;
     }
     .product-sheet-qty label {
-      flex-shrink: 0;
+      flex: 0 0 auto;
       margin: 0;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       text-transform: uppercase;
       color: var(--muted);
       white-space: nowrap;
     }
-    .product-sheet-qty input {
-      flex: 1;
+    .product-sheet-qty input,
+    .product-sheet-qty input[type="number"] {
+      flex: 1 1 0;
+      width: 0;
       min-width: 0;
-      width: auto;
+      max-width: 100%;
+      font-size: 16px;
     }
     .sheet {
       width: min(560px, 100%);
+      max-width: 100%;
+      margin: 0 auto;
       background: #fffdf9;
       border-radius: 16px 16px 12px 12px;
       box-shadow: var(--shadow);
@@ -826,7 +837,25 @@
       display: grid;
       gap: 12px;
       max-height: min(88vh, 720px);
-      overflow: auto;
+      overflow-x: hidden;
+      overflow-y: auto;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .cart-sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .cart-sheet-head h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .sheet h3 { margin: 0; font-size: 1.05rem; }
     .sheet textarea {
@@ -839,6 +868,39 @@
     #shareText { min-height: 180px; }
     .sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sheet .btns .full { grid-column: 1 / -1; }
+
+    @media (max-width: 640px) {
+      .sheet-backdrop {
+        place-items: end stretch;
+        padding: 10px;
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+      }
+      .sheet {
+        width: 100%;
+        max-width: 100%;
+        padding: 14px;
+        padding-bottom: max(14px, env(safe-area-inset-bottom));
+        border-radius: 16px 16px 14px 14px;
+        max-height: min(85vh, 720px);
+      }
+      .product-sheet-name { font-size: 0.95rem; }
+      .product-sheet-meta { font-size: 0.8rem; }
+      .product-sheet-qty { gap: 8px; }
+      .product-sheet-qty label {
+        font-size: 0.7rem;
+        letter-spacing: 0.02em;
+      }
+      .sheet .btns {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .sheet .btns .btn-primary,
+      .sheet .btns .btn-secondary {
+        min-height: 44px;
+      }
+    }
 
     @media print {
       body { background: #fff; }
@@ -920,8 +982,8 @@
       </div>
       <div class="product-sheet-body" id="productSheetBody"></div>
       <div class="product-sheet-qty">
-        <label for="productQty">Order Qty</label>
-        <input type="number" id="productQty" min="1" step="1" inputmode="numeric" placeholder="Enter quantity" />
+        <label for="productQty">Qty</label>
+        <input type="number" id="productQty" min="1" step="1" inputmode="numeric" placeholder="Qty" />
       </div>
       <div class="btns">
         <button type="button" class="btn-primary" id="btnAddProduct">Add to Cart</button>
