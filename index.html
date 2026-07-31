@@ -174,7 +174,7 @@
     .badge.gillette { background: #e8f0f4; color: #2a5568; }
     .badge.yardley { background: #eef3e6; color: #4a5c2e; }
 
-    input[type="search"], input[type="number"], textarea, select {
+    input[type="search"], input[type="number"], input[type="text"], textarea, select {
       width: 100%;
       border: 1px solid var(--line);
       background: #fff;
@@ -627,20 +627,21 @@
       text-align: center;
       min-height: 120px;
     }
-    .cart-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+    .cart-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
     .cart-item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px 10px;
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      padding: 10px 0;
+      gap: 10px;
+      padding: 12px 0;
       border-bottom: 1px solid var(--line);
     }
-    .cart-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .cart-item:last-child { border-bottom: none; padding-bottom: 4px; }
     .cart-item-name {
-      grid-column: 1 / -1;
+      flex: 1;
+      min-width: 0;
       font-weight: 700;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       line-height: 1.35;
       word-break: break-word;
     }
@@ -648,13 +649,14 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      flex-shrink: 0;
     }
     .cart-qty-btn {
       width: 34px;
       height: 34px;
-      border: 1px solid var(--line);
+      border: none;
       border-radius: 8px;
-      background: #fff;
+      background: #dff2eb;
       font: inherit;
       font-size: 1.1rem;
       font-weight: 700;
@@ -662,9 +664,9 @@
       color: var(--ink);
       line-height: 1;
     }
-    .cart-qty-btn:hover { background: #f3eee6; }
+    .cart-qty-btn:hover { background: #cfeae0; }
     .cart-qty-val {
-      min-width: 36px;
+      min-width: 28px;
       text-align: center;
       font-variant-numeric: tabular-nums;
       font-weight: 700;
@@ -674,15 +676,51 @@
       height: 34px;
       border: none;
       border-radius: 8px;
-      background: transparent;
+      background: #fce6e2;
       color: var(--warn);
       font: inherit;
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 700;
       cursor: pointer;
       line-height: 1;
     }
-    .cart-del-btn:hover { background: #f8ebe8; }
+    .cart-del-btn:hover { background: #f6d6d0; }
+    .btn-clear-cart {
+      background: #fce6e2;
+      color: var(--warn);
+      border: none;
+    }
+    .btn-clear-cart:hover:not(:disabled) { background: #f6d6d0; }
+    #cartSheet .sheet {
+      background: #fff;
+      border-radius: 20px;
+      gap: 14px;
+      padding: 18px;
+    }
+    #cartSheet .summary {
+      background: #fff;
+      border: 1.5px dashed #d9d0c4;
+      padding: 6px 12px;
+    }
+    #cartSheet .summary.empty {
+      min-height: 100px;
+      padding: 12px;
+    }
+    #cartSheet .cart-store-field {
+      font-weight: 600;
+      color: var(--muted);
+    }
+    #cartSheet .cart-store-field input {
+      font-weight: 500;
+      color: var(--ink);
+      min-height: 44px;
+    }
+    #cartSheet .btns .btn-primary,
+    #cartSheet .btns .btn-secondary,
+    #cartSheet .btns .btn-clear-cart {
+      border-radius: 12px;
+      min-height: 46px;
+    }
     .total-row {
       display: flex;
       justify-content: space-between;
@@ -853,11 +891,18 @@
     }
     .cart-sheet-head h3 {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: 1.15rem;
+      font-weight: 800;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    #cartSheet .cart-sheet-head .btn-sm {
+      border-radius: 10px;
+      background: #f2ece0;
+      border: none;
+      padding: 8px 14px;
     }
     .sheet h3 { margin: 0; font-size: 1.05rem; }
     .sheet textarea {
@@ -963,16 +1008,15 @@
         <h3 id="cartTitle">Cart</h3>
         <button type="button" class="btn-secondary btn-sm" id="btnCloseCart">Close</button>
       </div>
-      <div id="cartList" class="summary empty">Cart is empty.</div>
-      <label class="field">Note (optional)
-        <textarea id="orderNote" rows="2" placeholder="Delivery / contact note"></textarea>
+      <label class="field cart-store-field">Store Name
+        <input type="text" id="orderNote" placeholder="Store name" autocomplete="organization" />
       </label>
+      <div id="cartList" class="summary empty">Cart is empty.</div>
       <div class="btns">
         <button type="button" class="btn-primary" id="btnSave">Save / Share</button>
         <button type="button" class="btn-secondary" id="btnPrint">Print</button>
-        <button type="button" class="btn-secondary full" id="btnClearQty">Clear Cart</button>
+        <button type="button" class="btn-clear-cart full" id="btnClearQty">Clear Cart</button>
       </div>
-      <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
     </div>
   </div>
 
@@ -2004,7 +2048,6 @@
         els.cartList.textContent = "Cart is empty.";
         return;
       }
-      const total = items.reduce((s, i) => s + i.qty, 0);
       els.cartList.className = "summary";
       els.cartList.innerHTML = `
         <ul class="cart-list">
@@ -2015,12 +2058,11 @@
                 <button type="button" class="cart-qty-btn" data-act="minus" aria-label="Decrease">−</button>
                 <span class="cart-qty-val">${i.qty}</span>
                 <button type="button" class="cart-qty-btn" data-act="plus" aria-label="Increase">+</button>
+                <button type="button" class="cart-del-btn" data-act="del" aria-label="Remove">×</button>
               </div>
-              <button type="button" class="cart-del-btn" data-act="del" aria-label="Remove">×</button>
             </li>
           `).join("")}
         </ul>
-        <div class="total-row"><span>Total</span><span>${total} pcs</span></div>
       `;
     }
 
@@ -2042,7 +2084,12 @@
         if (!groups.has(item.brand)) groups.set(item.brand, []);
         groups.get(item.brand).push(item);
       }
-      const lines = ["[Product Order · Google]", ""];
+      const lines = [];
+      const storeName = els.orderNote.value.trim();
+      if (storeName) {
+        lines.push(`Store Name: ${storeName}`);
+        lines.push("");
+      }
       for (const [brand, list] of groups.entries()) {
         lines.push(brand);
         list.forEach((i) => lines.push(`${i.name} - ${i.qty}`));
@@ -2050,11 +2097,6 @@
       }
       const totalQty = items.reduce((s, i) => s + i.qty, 0);
       lines.push(`Total: ${totalQty} pcs`);
-      const note = els.orderNote.value.trim();
-      if (note) {
-        lines.push("");
-        lines.push(`Note: ${note}`);
-      }
       return lines.join("\n");
     }
 
