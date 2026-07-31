@@ -442,6 +442,32 @@
     .btn-secondary:hover:not(:disabled) { background: #e7ded0; }
     .btn-sm { padding: 7px 10px; font-size: 0.82rem; }
 
+    .btn-soft-blue {
+      background: #d6ebf8;
+      color: #1a5f8a;
+      border: 1px solid #b7d7ec;
+      box-shadow: 0 0 0 0 rgba(90, 168, 220, 0.45);
+      animation: softBluePulse 2.2s ease-in-out infinite;
+    }
+    .btn-soft-blue:hover:not(:disabled) {
+      background: #c5e2f5;
+      border-color: #9ecae6;
+    }
+    .btn-soft-blue:disabled {
+      animation: none;
+      box-shadow: none;
+    }
+    @keyframes softBluePulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(90, 168, 220, 0.4);
+        transform: translateY(0);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(90, 168, 220, 0);
+        transform: translateY(-1px);
+      }
+    }
+
     .search-row {
       display: flex;
       gap: 8px;
@@ -462,6 +488,11 @@
       width: 22px;
       height: 22px;
       display: block;
+    }
+    #btnReload.btn-soft-blue {
+      letter-spacing: 0.06em;
+      font-weight: 800;
+      min-height: 34px;
     }
 
     /* Camera barcode scan overlay */
@@ -982,7 +1013,7 @@
         <div class="panel-head">
           <h2>Products · Items</h2>
           <div class="btns">
-            <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Google</button>
+            <button type="button" class="btn-soft-blue btn-sm" id="btnReload">RELOAD</button>
           </div>
         </div>
 
@@ -991,7 +1022,7 @@
           <p class="filter-label">Search / barcode</p>
           <div class="search-row">
             <input type="search" id="search" placeholder="Name, brand, or UPC" autocomplete="off" />
-            <button type="button" class="btn-secondary btn-sm btn-scan" id="btnScan" aria-label="Scan barcode" title="Scan">
+            <button type="button" class="btn-soft-blue btn-sm btn-scan" id="btnScan" aria-label="Scan barcode" title="Scan">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path fill="currentColor" d="M2 6h2v12H2V6zm3 0h1v12H5V6zm2 0h2v12H7V6zm3 0h1v12h-1V6zm2 0h3v12h-3V6zm4 0h1v12h-1V6zm2 0h2v12h-2V6zm3 0h1v12h-1V6z"/>
               </svg>
