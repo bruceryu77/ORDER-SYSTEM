@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Product Order · Google</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Order</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
@@ -2147,7 +2150,8 @@
     async function shareNative(text) {
       if (!navigator.share) return false;
       try {
-        await navigator.share({ title: "Product Order", text });
+        // text only — avoid apps prepending a page/share title above the order body
+        await navigator.share({ text });
         return true;
       } catch (err) {
         if (err && err.name === "AbortError") return true;
